@@ -42,7 +42,7 @@ const categories = [
 
 export default function Categories() {
   return (
-    <section className="py-24 bg-white">
+    <section className="pt-6 pb-12 bg-white">
       <div className="container">
         <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
           <div className="space-y-2">

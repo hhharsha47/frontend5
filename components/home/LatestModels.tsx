@@ -33,7 +33,7 @@ const products = [
 
 export default function LatestModels() {
   return (
-    <section className="py-20 bg-white">
+    <section className="py-10 bg-white">
       <div className="container">
         <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
           <div className="space-y-2">

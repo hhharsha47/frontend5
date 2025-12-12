@@ -73,7 +73,7 @@ export default function Bestsellers() {
   };
 
   return (
-    <section className="py-20 bg-gray-50/50">
+    <section className="pt-10 pb-0 bg-gray-50/50">
       <div className="container relative group/section">
         <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
           <div className="space-y-2">
