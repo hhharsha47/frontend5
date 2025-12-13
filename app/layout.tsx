@@ -38,7 +38,7 @@ export default function RootLayout({
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />
-          <Toaster position="top-center" richColors />
+          <Toaster position="bottom-right" richColors />
         </CartProvider>
       </body>
     </html>

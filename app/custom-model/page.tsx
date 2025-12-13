@@ -27,6 +27,7 @@ type FormData = {
 
 export default function CustomModelPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
   const {
     register,
     handleSubmit,
@@ -37,13 +38,14 @@ export default function CustomModelPage() {
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    console.log(data);
+    console.log({ ...data, files });
     toast.success("Request received!", {
       description: "Our team is reviewing your specifications.",
       className: "bg-white border-indigo-100 text-indigo-900",
     });
     setIsSubmitting(false);
     reset();
+    setFiles([]);
   };
 
   return (
@@ -225,24 +227,7 @@ export default function CustomModelPage() {
                   />
                 </div>
 
-                <div className="border border-dashed border-indigo-200 bg-indigo-50/30 rounded-2xl p-8 flex items-center justify-between gap-6 cursor-pointer hover:bg-indigo-50/60 transition-colors group">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform text-indigo-500">
-                      <Upload className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-900">
-                        Reference Materials
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        Upload photos or diagrams
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-bold bg-white px-3 py-1 rounded-full text-indigo-600 shadow-sm">
-                    Optional
-                  </span>
-                </div>
+                <FileUploadArea files={files} setFiles={setFiles} />
 
                 <button
                   type="submit"
@@ -310,6 +295,129 @@ function InputGroup({
         {label}
       </label>
       {children}
+    </div>
+  );
+}
+
+import { X, FileText, Image as LucideImage } from "lucide-react";
+
+function FileUploadArea({
+  files,
+  setFiles,
+}: {
+  files: File[];
+  setFiles: (files: File[]) => void;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files) {
+      setFiles([...files, ...Array.from(e.dataTransfer.files)]);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFiles([...files, ...Array.from(e.target.files)]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    const newFiles = [...files];
+    newFiles.splice(index, 1);
+    setFiles(newFiles);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`border-2 border-dashed rounded-2xl p-8 flex items-center justify-between gap-6 cursor-pointer transition-all group relative ${
+          isDragging
+            ? "border-indigo-500 bg-indigo-50"
+            : "border-indigo-200 bg-indigo-50/30 hover:bg-indigo-50/60"
+        }`}
+      >
+        <input
+          type="file"
+          multiple
+          onChange={handleFileSelect}
+          className="absolute inset-0 opacity-0 cursor-pointer z-10"
+        />
+        <div className="flex items-center gap-4">
+          <div
+            className={`w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center transition-transform text-indigo-500 ${
+              isDragging ? "scale-110" : "group-hover:scale-110"
+            }`}
+          >
+            <Upload className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="font-bold text-slate-900">Reference Materials</p>
+            <p className="text-sm text-slate-500">
+              {isDragging
+                ? "Drop files here..."
+                : "Drag & drop or clicked to upload"}
+            </p>
+          </div>
+        </div>
+        <span className="text-xs font-bold bg-white px-3 py-1 rounded-full text-indigo-600 shadow-sm">
+          Optional
+        </span>
+      </div>
+
+      {/* File Previews */}
+      {files.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
+          {files.map((file, i) => (
+            <div
+              key={i}
+              className="bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-3 relative group"
+            >
+              <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
+                {file.type.startsWith("image/") ? (
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt="preview"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <FileText className="w-5 h-5 text-slate-400" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-slate-700 truncate">
+                  {file.name}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeFile(i)}
+                className="p-1.5 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
