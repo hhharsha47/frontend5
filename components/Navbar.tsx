@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { Search, ShoppingCart, Phone } from "lucide-react";
 
 // Actually I don't have shadcn components folder setup yet. I'll use raw tailwind for now to ensure it works then refactor if needed.
@@ -13,6 +14,8 @@ const navLinks = [
 ];
 
 export default function Navbar() {
+  const pathname = usePathname();
+
   return (
     <header className="sticky top-0 z-50 w-full bg-white shadow-sm border-b border-gray-100">
       <div className="container py-2 flex items-center justify-between gap-4">
@@ -30,19 +33,23 @@ export default function Navbar() {
 
         {/* Navigation Links - Centered */}
         <nav className="hidden md:flex items-center gap-6">
-          {navLinks.map((link) => (
-            <Link
-              key={link.name}
-              href={link.href}
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                link.name === "Home"
-                  ? "text-primary font-semibold"
-                  : "text-gray-600"
-              }`}
-            >
-              {link.name}
-            </Link>
-          ))}
+          {navLinks.map((link) => {
+            const isActive =
+              link.href === "/"
+                ? pathname === "/"
+                : pathname.startsWith(link.href);
+            return (
+              <Link
+                key={link.name}
+                href={link.href}
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive ? "text-primary font-semibold" : "text-gray-600"
+                }`}
+              >
+                {link.name}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Right Side: Search + Actions */}
