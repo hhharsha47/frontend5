@@ -147,18 +147,18 @@ export default function AboutPage() {
 
           <div className="relative h-[60vh] min-h-[500px] w-full rounded-2xl overflow-hidden group">
             <Image
-              src="/about/team_v3.png"
-              alt="The SkyScale Team"
+              src="/about/team_v5.png"
+              alt="The SkyScale Workshop"
               fill
               className="object-cover transition-transform duration-700 group-hover:scale-105 filter grayscale group-hover:grayscale-0"
             />
             <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/90 to-transparent p-12">
               <h3 className="text-white text-2xl font-bold mb-2">
-                The Atelier
+                The Workshop
               </h3>
               <p className="text-gray-300">
-                Where passion meets precision. Master artisans, one shared
-                vision.
+                Where raw materials become legacy. Precision tools, infinite
+                patience.
               </p>
             </div>
           </div>
