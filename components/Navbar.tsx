@@ -4,17 +4,18 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Search, ShoppingCart, Phone } from "lucide-react";
-
-// Actually I don't have shadcn components folder setup yet. I'll use raw tailwind for now to ensure it works then refactor if needed.
+import { useCart } from "@/context/CartContext";
 
 const navLinks = [
   { name: "Home", href: "/" },
   { name: "About Us", href: "/about" },
   { name: "Model Shop", href: "/shop" },
+  { name: "Custom Model", href: "/custom-model" },
 ];
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { count } = useCart();
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white shadow-sm border-b border-gray-100">
@@ -66,9 +67,17 @@ export default function Navbar() {
             </button>
           </div>
 
-          <button className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-600 hover:border-primary hover:text-primary hover:shadow-sm transition-all">
+          <Link
+            href="/cart"
+            className="relative w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-600 hover:border-primary hover:text-primary hover:shadow-sm transition-all"
+          >
             <ShoppingCart className="w-4 h-4" />
-          </button>
+            {count > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm animate-in zoom-in duration-300">
+                {count}
+              </span>
+            )}
+          </Link>
           <button className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-600 hover:border-primary hover:text-primary hover:shadow-sm transition-all">
             <Phone className="w-4 h-4" />
           </button>
