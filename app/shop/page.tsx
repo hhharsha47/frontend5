@@ -5,6 +5,7 @@ import FilterSidebar from "@/components/shop/FilterSidebar";
 import ProductGrid from "@/components/shop/ProductGrid";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { products as initialProducts } from "@/components/shop/shop-data";
+import { motion } from "framer-motion";
 
 export default function ShopPage() {
   // State
@@ -91,8 +92,17 @@ export default function ShopPage() {
       </div>
       <div className="container mx-auto py-12 px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header Section */}
-        <div className="flex flex-col items-center justify-center text-center gap-8 mb-16 relative z-10 max-w-4xl mx-auto">
-          <div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="flex flex-col items-center justify-center text-center gap-8 mb-16 relative z-10 max-w-4xl mx-auto"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.6 }}
+          >
             <span className="text-[var(--primary-orange)] font-bold tracking-[0.2em] text-xs uppercase mb-4 block">
               Premium Collection
             </span>
@@ -106,10 +116,15 @@ export default function ShopPage() {
               Discover our curated selection of high-fidelity 3D scale models,
               from vintage aircraft to modern armor.
             </p>
-          </div>
+          </motion.div>
 
           {/* Big Search Bar - Centered */}
-          <div className="w-full max-w-xl">
+          <motion.div
+            className="w-full max-w-xl"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3, duration: 0.5, ease: "backOut" }}
+          >
             <div className="relative group shadow-2xl shadow-blue-100/60 rounded-full transition-all hover:shadow-blue-100/80 hover:-translate-y-1 bg-white">
               <input
                 type="text"
@@ -122,8 +137,8 @@ export default function ShopPage() {
                 <Search className="w-6 h-6" />
               </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         <div className="lg:grid lg:grid-cols-12 lg:gap-12 items-start">
           {/* Sidebar - Desktop */}

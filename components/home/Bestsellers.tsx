@@ -10,7 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { toast } from "sonner";
 import { Product, products } from "@/components/shop/shop-data";
@@ -18,6 +18,7 @@ import { Product, products } from "@/components/shop/shop-data";
 export default function Bestsellers() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { addToCart } = useCart();
+  const [isHovered, setIsHovered] = useState(false);
 
   // IDs of bestsellers
   const bestSellerIds = ["101", "102", "103", "104", "105"];
@@ -32,6 +33,48 @@ export default function Bestsellers() {
   };
 
   const bestsellerItems = products.filter((p) => bestSellerIds.includes(p.id));
+  // create a large enough buffer for seamless infinite scroll
+  const infiniteItems = [
+    ...bestsellerItems,
+    ...bestsellerItems,
+    ...bestsellerItems,
+    ...bestsellerItems,
+  ];
+
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer || isHovered) return;
+
+    let animationFrameId: number;
+
+    const scroll = () => {
+      if (!scrollContainer) return;
+
+      // If we've scrolled past the first set (approx), reset to 0 to loop seamlessly
+      // We use a buffer. When scrollLeft is large enough, subtract chunk width.
+      // But simple way: calculate width of one set.
+      // Better: check if we are near end.
+      // Simpler approach for "infinite":
+      // Just keep incrementing. If max, reset.
+      // To be seamless: When we reach the point where the 2nd set starts matching the 1st set's view, we jump back.
+      // We have 4 sets.
+      // If scrollLeft >= scrollWidth / 2, we can jump back to (scrollLeft - scrollWidth/2).
+      // Or if scrollLeft >= scrollWidth / 4 (one set width), jump to 0?
+      // No, jump to 0 might be jerky if not exact.
+      // Let's rely on checking if we can reset.
+
+      if (scrollContainer.scrollLeft >= scrollContainer.scrollWidth / 2) {
+        scrollContainer.scrollLeft = 0;
+      } else {
+        scrollContainer.scrollLeft += 0.5; // Low speed for elegance
+      }
+      animationFrameId = requestAnimationFrame(scroll);
+    };
+
+    animationFrameId = requestAnimationFrame(scroll);
+
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isHovered]);
 
   const scroll = (direction: "left" | "right") => {
     if (scrollContainerRef.current) {
@@ -56,9 +99,13 @@ export default function Bestsellers() {
   };
 
   return (
-    <section className="pt-10 pb-0 bg-gray-50/50">
-      <div className="container relative group/section">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+    <section className="pt-4 pb-0 bg-gray-50/50">
+      <div
+        className="container relative group/section"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-6">
           <div className="space-y-2">
             <h2 className="text-3xl md:text-4xl font-bold text-primary">
               Bestsellers
@@ -72,24 +119,24 @@ export default function Bestsellers() {
           </button>
         </div>
 
-        {/* Navigation Buttons */}
-        <div className="absolute top-[60%] -translate-y-1/2 left-4 md:-left-4 z-20">
+        {/* Navigation Buttons - Tighter Positioning */}
+        <div className="absolute top-[60%] -translate-y-1/2 left-0 z-30">
           <button
             onClick={() => scroll("left")}
-            className="w-12 h-12 rounded-full bg-white shadow-lg border border-gray-100 flex items-center justify-center text-gray-700 hover:text-primary hover:border-primary transition-all md:opacity-0 md:group-hover/section:opacity-100"
+            className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm shadow-lg border border-gray-100 flex items-center justify-center text-gray-700 hover:text-primary hover:border-primary transition-all md:opacity-0 md:group-hover/section:opacity-100"
             aria-label="Scroll left"
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="absolute top-[60%] -translate-y-1/2 right-4 md:-right-4 z-20">
+        <div className="absolute top-[60%] -translate-y-1/2 right-0 z-30">
           <button
             onClick={() => scroll("right")}
-            className="w-12 h-12 rounded-full bg-white shadow-lg border border-gray-100 flex items-center justify-center text-gray-700 hover:text-primary hover:border-primary transition-all md:opacity-0 md:group-hover/section:opacity-100"
+            className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm shadow-lg border border-gray-100 flex items-center justify-center text-gray-700 hover:text-primary hover:border-primary transition-all md:opacity-0 md:group-hover/section:opacity-100"
             aria-label="Scroll right"
           >
-            <ChevronRight className="w-6 h-6" />
+            <ChevronRight className="w-5 h-5" />
           </button>
         </div>
 
@@ -99,18 +146,25 @@ export default function Bestsellers() {
             ref={scrollContainerRef}
             className="flex overflow-x-auto gap-6 px-4 md:px-0 pb-8 no-scrollbar snap-x snap-mandatory scroll-smooth"
           >
-            {bestsellerItems.map((product, index) => (
+            {infiniteItems.map((product, index) => (
               <motion.div
-                key={product.id}
+                key={`${product.id}-${index}`}
                 initial={{ opacity: 0, x: 20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.1, duration: 0.5 }}
-                className="flex-none w-[280px] md:w-[320px] snap-center group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 relative"
+                transition={{
+                  delay: (index % bestsellerItems.length) * 0.1, // Stagger based on original length to avoid long delays
+                  duration: 0.6,
+                  ease: "easeOut",
+                }}
+                className="flex-none w-[280px] md:w-[320px] snap-center group bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-2xl hover:shadow-purple-500/20 hover:border-purple-500/30 transition-all duration-500 relative"
               >
                 <Link href={`/shop/${product.id}`} className="block h-full">
-                  <div className="relative aspect-[4/3] bg-gray-50 overflow-hidden">
-                    <span className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-primary-orange shadow-sm">
+                  <div className="relative aspect-[4/3] bg-gray-50 group-hover:bg-purple-500/5 transition-colors duration-500 overflow-hidden">
+                    {/* Metallic Shimmer Effect */}
+                    <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent z-10" />
+
+                    <span className="absolute top-4 left-4 z-20 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-primary-orange shadow-sm">
                       {tags[product.id]}
                     </span>
                     <button
@@ -122,12 +176,12 @@ export default function Bestsellers() {
                     >
                       <Heart className="w-4 h-4" />
                     </button>
-                    <div className="relative w-full h-full transition-transform duration-500 group-hover:scale-105">
+                    <div className="relative w-full h-full">
                       <Image
                         src={product.image}
                         alt={product.title}
                         fill
-                        className="object-cover"
+                        className="object-contain p-4"
                       />
                     </div>
                   </div>

@@ -2,6 +2,7 @@
 
 import { Product } from "./shop-data";
 import ProductCard from "./ProductCard";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ProductGridProps {
   products: Product[];
@@ -39,11 +40,25 @@ export default function ProductGrid({
       </div>
 
       {products.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-10">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        <motion.div
+          layout
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-10"
+        >
+          <AnimatePresence>
+            {products.map((product) => (
+              <motion.div
+                layout
+                key={product.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.4 }}
+              >
+                <ProductCard product={product} isShopPage={true} />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </motion.div>
       ) : (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <h3 className="text-xl font-bold text-gray-900 mb-2">

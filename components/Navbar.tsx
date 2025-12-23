@@ -19,7 +19,7 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white shadow-sm border-b border-gray-100">
-      <div className="container py-2 flex items-center justify-between gap-4">
+      <div className="container py-4 flex items-center justify-between gap-4">
         {/* Logo */}
         <Link href="/" className="shrink-0">
           <Image
@@ -60,7 +60,7 @@ export default function Navbar() {
             <input
               type="text"
               placeholder="Search..."
-              className="w-48 lg:w-64 h-9 pl-4 pr-10 rounded-full bg-gray-100 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm"
+              className="w-64 lg:w-80 h-11 pl-5 pr-12 rounded-full bg-gray-100 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm"
             />
             <button className="absolute right-1 top-1 bottom-1 p-1.5 rounded-full text-gray-500 hover:text-primary hover:bg-white transition-colors">
               <Search className="w-4 h-4" />

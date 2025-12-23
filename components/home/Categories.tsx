@@ -42,9 +42,9 @@ const categories = [
 
 export default function Categories() {
   return (
-    <section className="pt-6 pb-12 bg-white">
+    <section className="py-8 bg-white">
       <div className="container">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+        <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-6">
           <div className="space-y-2">
             <h2 className="text-3xl md:text-5xl font-bold text-gray-900 tracking-tight">
               Shop by Category

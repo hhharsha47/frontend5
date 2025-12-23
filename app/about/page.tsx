@@ -21,7 +21,7 @@ export default function AboutPage() {
   return (
     <main ref={containerRef} className="bg-white">
       {/* 1. Cinematic Hero Section */}
-      <section className="relative h-screen w-full overflow-hidden flex items-end pb-24">
+      <section className="relative h-screen w-full overflow-hidden flex items-end pb-8">
         <motion.div
           style={{ y: heroY, scale: heroScale }}
           className="absolute inset-0 z-0 will-change-transform"
@@ -33,7 +33,8 @@ export default function AboutPage() {
             className="object-cover"
             priority
           />
-          <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-black/30" />
+          <div className="absolute inset-0 bg-linear-to-t from-[var(--accent-blue)]/90 via-[var(--primary-blue)]/40 to-transparent mix-blend-multiply" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
         </motion.div>
 
         <div className="container relative z-10 text-white px-4 md:px-0">
@@ -62,7 +63,7 @@ export default function AboutPage() {
       </section>
 
       {/* 2. Editorial Story Section */}
-      <section className="relative py-32 bg-white overflow-hidden">
+      <section className="relative py-12 bg-white overflow-hidden">
         <div className="container relative z-10">
           <div className="flex flex-col lg:flex-row gap-20 items-start">
             {/* Typography Column */}
@@ -73,7 +74,7 @@ export default function AboutPage() {
               transition={{ duration: 0.8 }}
               className="lg:w-1/2 pt-10"
             >
-              <h2 className="text-4xl md:text-6xl font-serif font-medium text-gray-900 leading-tight mb-8">
+              <h2 className="text-4xl md:text-6xl font-serif font-medium text-[var(--primary-blue)] leading-tight mb-8">
                 &quot;Precision isn&apos;t just a metric. It&apos;s a
                 religion.&quot;
               </h2>
@@ -126,9 +127,9 @@ export default function AboutPage() {
       <PhilosophySection />
 
       {/* 4. Team "Showcase" Section */}
-      <section className="py-24 bg-gray-50">
+      <section className="py-12 bg-blue-50/50">
         <div className="container">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-12">
+          <div className="flex flex-col md:flex-row justify-between items-end mb-8">
             <div>
               <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
                 Behind the Bench
@@ -139,7 +140,7 @@ export default function AboutPage() {
             </div>
             <Link
               href="/contact"
-              className="hidden md:flex items-center gap-2 text-gray-900 font-bold border-b-2 border-primary-orange pb-1 hover:text-primary-orange transition-colors"
+              className="hidden md:flex items-center gap-2 text-gray-900 font-bold border-b-2 border-[var(--primary-orange)] pb-1 hover:text-[var(--primary-orange)] transition-colors"
             >
               Join the Team <ArrowRight className="w-5 h-5" />
             </Link>
@@ -193,7 +194,13 @@ function PhilosophySection() {
   const y = useTransform(springScroll, [0, 1], ["-20%", "20%"]);
 
   return (
-    <section ref={ref} className="relative py-32 overflow-hidden bg-gray-950">
+    <section
+      ref={ref}
+      className="relative py-12 overflow-hidden bg-[var(--primary-dark)]"
+    >
+      {/* Brand Gradient Background */}
+      <div className="absolute inset-0 bg-linear-to-br from-[var(--accent-blue)] to-[var(--primary-dark)] opacity-50" />
+
       {/* Texture Overlay */}
       <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100"></div>
@@ -208,22 +215,22 @@ function PhilosophySection() {
           src="/about/hero.png"
           alt="Background Texture"
           fill
-          className="object-cover grayscale brightness-75"
+          className="object-cover grayscale brightness-75 mix-blend-overlay"
           sizes="100vw"
         />
-        <div className="absolute inset-0 bg-gray-950/60" />
+        <div className="absolute inset-0 bg-indigo-950/80" />
       </motion.div>
 
       <div className="container relative z-10 text-white">
-        <div className="mb-24 text-center">
+        <div className="mb-10 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="inline-flex items-center gap-2 border border-white/10 bg-white/5 px-3 py-1 rounded-full mb-6 backdrop-blur-sm"
+            className="inline-flex items-center gap-2 border border-white/10 bg-white/5 px-3 py-1 rounded-full mb-6 backdrop-blur-sm shadow-[0_0_15px_rgba(43,126,193,0.3)]"
           >
-            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-            <span className="text-xs font-mono text-indigo-200 uppercase tracking-widest">
+            <span className="w-2 h-2 rounded-full bg-[var(--primary-orange)] animate-pulse" />
+            <span className="text-xs font-mono text-blue-100 uppercase tracking-widest">
               Our Philosophy
             </span>
           </motion.div>
@@ -232,7 +239,7 @@ function PhilosophySection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="text-5xl md:text-7xl font-bold tracking-tight text-white"
+            className="text-4xl md:text-6xl font-bold tracking-tight text-white mb-2 drop-shadow-lg"
           >
             Built Different.
           </motion.h2>
@@ -246,20 +253,20 @@ function PhilosophySection() {
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
             whileHover={{ scale: 0.99 }}
-            className="md:col-span-2 row-span-2 group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-8 md:p-12 hover:border-indigo-500/50 hover:bg-white/10 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500 backdrop-blur-xl"
+            className="md:col-span-2 row-span-2 group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-8 md:p-10 hover:border-[var(--primary-blue)]/50 hover:bg-white/10 hover:shadow-2xl hover:shadow-[var(--primary-blue)]/20 transition-all duration-500 backdrop-blur-xl"
           >
             <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-20 transition-opacity duration-700 rotate-12 transform group-hover:scale-110 group-hover:rotate-6">
-              <Hammer className="w-64 h-64" />
+              <Hammer className="w-64 h-64 text-[var(--primary-blue)]" />
             </div>
             <div className="relative z-10 flex flex-col h-full justify-between">
               <div>
-                <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-indigo-500/20 group-hover:scale-110 transition-transform duration-500">
+                <div className="w-14 h-14 bg-linear-to-br from-[var(--primary-blue)] to-[var(--accent-blue)] rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform duration-500">
                   <PenTool className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-3xl font-bold mb-4 text-white group-hover:text-indigo-200 transition-colors">
                   Forensic Detailing
                 </h3>
-                <p className="text-gray-400 text-lg leading-relaxed max-w-md group-hover:text-gray-300 transition-colors">
+                <p className="text-indigo-100/80 text-lg leading-relaxed max-w-md group-hover:text-white transition-colors">
                   We utilize 3D scanning and archival blueprints to ensure
                   mm-perfect accuracy. If the real tank had a weld line there,
                   our model has it too.
@@ -283,10 +290,10 @@ function PhilosophySection() {
             viewport={{ once: true }}
             transition={{ delay: 0.3 }}
             whileHover={{ y: -5 }}
-            className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-8 hover:border-indigo-500/50 hover:bg-white/10 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500 backdrop-blur-xl flex flex-col justify-between"
+            className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-8 hover:border-[var(--primary-orange)]/50 hover:bg-white/10 hover:shadow-2xl hover:shadow-[var(--primary-orange)]/10 transition-all duration-500 backdrop-blur-xl flex flex-col justify-between"
           >
-            <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-indigo-500/20 transition-colors">
-              <Heart className="w-6 h-6 text-indigo-400 group-hover:text-indigo-200" />
+            <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-[var(--primary-orange)]/20 transition-colors">
+              <Heart className="w-6 h-6 text-[var(--primary-orange)] group-hover:text-white transition-colors" />
             </div>
             <div>
               <h4 className="text-xl font-bold mb-3 text-white">
@@ -306,10 +313,10 @@ function PhilosophySection() {
             viewport={{ once: true }}
             transition={{ delay: 0.4 }}
             whileHover={{ y: -5 }}
-            className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-8 hover:border-indigo-500/50 hover:bg-white/10 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500 backdrop-blur-xl flex flex-col justify-between"
+            className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-8 hover:border-[var(--primary-blue)]/50 hover:bg-white/10 hover:shadow-2xl hover:shadow-[var(--primary-blue)]/10 transition-all duration-500 backdrop-blur-xl flex flex-col justify-between"
           >
-            <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-blue-500/20 transition-colors">
-              <Users className="w-6 h-6 text-blue-400 group-hover:text-blue-200" />
+            <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-[var(--primary-blue)]/20 transition-colors">
+              <Users className="w-6 h-6 text-blue-400 group-hover:text-white transition-colors" />
             </div>
             <div>
               <h4 className="text-xl font-bold mb-3 text-white">
@@ -328,12 +335,12 @@ function PhilosophySection() {
             viewport={{ once: true }}
             transition={{ delay: 0.5 }}
             whileHover={{ scale: 0.99 }}
-            className="md:col-span-2 group relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-indigo-900/40 to-black/40 p-8 hover:border-indigo-400/50 hover:from-indigo-900/60 hover:shadow-2xl hover:shadow-indigo-500/20 transition-all duration-500 backdrop-blur-xl flex items-center"
+            className="md:col-span-2 group relative overflow-hidden rounded-[2rem] border border-white/10 bg-linear-to-br from-[var(--accent-blue)]/60 to-[var(--primary-dark)]/60 p-8 hover:border-[var(--primary-blue)]/50 hover:from-[var(--accent-blue)]/80 hover:shadow-2xl hover:shadow-[var(--primary-blue)]/20 transition-all duration-500 backdrop-blur-xl flex items-center"
           >
             <div className="relative z-10 max-w-sm">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-yellow-500/10 rounded-lg">
-                  <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+                <div className="p-2 bg-[var(--primary-orange)]/10 rounded-lg">
+                  <Star className="w-5 h-5 text-[var(--primary-orange)] fill-[var(--primary-orange)]" />
                 </div>
                 <h3 className="text-2xl font-bold text-white">
                   Strictly Limited Runs
@@ -346,7 +353,7 @@ function PhilosophySection() {
               </p>
             </div>
             {/* Decorative faint star */}
-            <Star className="absolute right-[-20px] bottom-[-40px] w-48 h-48 text-white/5 rotate-12 group-hover:rotate-45 transition-transform duration-700 ease-out" />
+            <Star className="absolute right-[-20px] bottom-[-40px] w-48 h-48 text-[var(--primary-orange)]/5 rotate-12 group-hover:rotate-45 transition-transform duration-700 ease-out" />
           </motion.div>
         </div>
       </div>

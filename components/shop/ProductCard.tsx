@@ -10,9 +10,13 @@ import { useCart } from "@/context/CartContext";
 
 interface ProductCardProps {
   product: Product;
+  isShopPage?: boolean;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({
+  product,
+  isShopPage = false,
+}: ProductCardProps) {
   const [quantity, setQuantity] = useState(0);
   const { addToCart } = useCart();
 
@@ -48,16 +52,23 @@ export default function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <Link href={`/shop/${product.id}`} className="block group">
-      <div className="relative bg-white rounded-[2.5rem] overflow-visible pb-4 border border-transparent hover:border-blue-50 hover:shadow-2xl hover:shadow-[var(--primary-blue)]/20 hover:-translate-y-2 transition-all duration-500 ease-out">
+    <Link href={`/shop/${product.id}`} className="block group h-full">
+      <div className="relative bg-white rounded-xl overflow-hidden pb-4 border border-transparent hover:border-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-500 ease-out h-full flex flex-col">
         {/* Image Container - Floating Effect - Merged with Card & Rounded */}
-        <div className="relative h-72 -mt-12 mb-4 overflow-hidden bg-white rounded-t-[2.5rem] group-hover:scale-105 transition-all duration-500 flex items-center justify-center z-10 w-full px-2">
+        <div className="relative h-64 overflow-hidden bg-gray-50/50 group-hover:bg-purple-500/5 transition-colors duration-500 flex items-center justify-center w-full px-4 pt-4 pb-2">
+          {/* Metallic Shimmer Effect */}
+          <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent z-10" />
+
           {!product.image.includes("placeholder") ? (
             <Image
               src={product.image}
               alt={product.title}
               fill
-              className="object-contain p-2 drop-shadow-xl group-hover:scale-110 transition-transform duration-500"
+              className={`object-contain p-2 drop-shadow-lg transition-all duration-500 relative z-0 ${
+                isShopPage
+                  ? "group-hover:-translate-y-3 group-hover:drop-shadow-2xl"
+                  : ""
+              }`}
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           ) : (
@@ -75,26 +86,25 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
 
         {/* Content */}
-        <div className="px-6 pt-2">
-          <div className="flex justify-between items-start mb-1">
-            <h3 className="font-outfit font-bold text-gray-900 text-lg leading-tight line-clamp-2 min-h-[3rem]">
+        <div className="px-5 pt-2 flex flex-col flex-grow">
+          <div className="flex justify-between items-start mb-2">
+            <h3 className="font-outfit font-bold text-gray-900 text-lg leading-tight line-clamp-2 min-h-[3.25rem] group-hover:text-[var(--primary-blue)] transition-colors">
               {product.title}
             </h3>
           </div>
 
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-100 px-2 py-0.5 rounded-sm">
               {product.category}
             </span>
-            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-            <span className="text-xs font-medium text-gray-500">
+            <span className="text-xs font-medium text-gray-400">
               {product.scale}
             </span>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mt-auto pt-2 border-t border-gray-50">
             <div className="flex flex-col">
-              <span className="text-xs text-gray-400 font-medium ml-0.5">
+              <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
                 Price
               </span>
               <span className="text-xl font-bold text-gray-900">
@@ -117,17 +127,17 @@ export default function ProductCard({ product }: ProductCardProps) {
               {quantity === 0 ? (
                 <button
                   onClick={handleAddToCart}
-                  className={`w-12 h-12 flex items-center justify-center rounded-full bg-[var(--primary-blue)] text-white shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                    quantity === 0 ? "group-hover:rotate-90" : ""
-                  }`}
+                  className="w-10 h-10 flex items-center justify-center rounded-full bg-[var(--primary-blue)] text-white shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed group-hover:rotate-90 duration-300"
                   disabled={!product.inStock}
                   title={product.inStock ? "Add to Cart" : "Out of Stock"}
                 >
-                  <Plus className="w-6 h-6 stroke-2" />
+                  <Plus
+                    className={`w-5 h-5 stroke-2 flex-shrink-0 transition-transform`}
+                  />
                 </button>
               ) : (
                 <div
-                  className="h-12 flex items-center bg-[var(--primary-blue)] rounded-full p-1 shadow-lg shadow-blue-200 min-w-[110px] justify-between animate-in fade-in zoom-in duration-200"
+                  className="h-10 flex items-center bg-[var(--primary-blue)] rounded-full p-1 shadow-lg shadow-blue-200 min-w-[100px] justify-between animate-in fade-in zoom-in duration-200"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -135,18 +145,18 @@ export default function ProductCard({ product }: ProductCardProps) {
                 >
                   <button
                     onClick={handleDecrement}
-                    className="w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+                    className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
                   >
-                    <Minus className="w-5 h-5 stroke-[2.5]" />
+                    <Minus className="w-4 h-4 stroke-[2.5]" />
                   </button>
-                  <span className="text-white font-outfit font-bold text-lg w-6 text-center tabular-nums">
+                  <span className="text-white font-outfit font-bold text-base w-6 text-center tabular-nums">
                     {quantity}
                   </span>
                   <button
                     onClick={handleIncrement}
-                    className="w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+                    className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
                   >
-                    <Plus className="w-5 h-5 stroke-[2.5]" />
+                    <Plus className="w-4 h-4 stroke-[2.5]" />
                   </button>
                 </div>
               )}

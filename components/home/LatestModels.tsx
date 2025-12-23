@@ -29,9 +29,9 @@ export default function LatestModels() {
   };
 
   return (
-    <section className="py-10 bg-white">
+    <section className="py-8 bg-white">
       <div className="container">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+        <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-6">
           <div className="space-y-2">
             <h2 className="text-3xl md:text-4xl font-bold text-primary">
               Latest Arrivals
@@ -53,13 +53,19 @@ export default function LatestModels() {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: index * 0.1, duration: 0.5 }}
-              whileHover={{ y: -8 }}
-              className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 relative"
+              transition={{
+                delay: index * 0.1,
+                duration: 0.6,
+                ease: "easeOut",
+              }}
+              className="group bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-2xl hover:shadow-purple-500/20 hover:border-purple-500/30 transition-all duration-500 relative"
             >
               <Link href={`/shop/${product.id}`} className="block h-full">
-                <div className="relative aspect-[4/3] bg-gray-50 p-6 overflow-hidden">
-                  <span className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-primary-dark shadow-sm">
+                <div className="relative aspect-[4/3] bg-gray-50 group-hover:bg-purple-500/5 transition-colors duration-500 p-6 overflow-hidden">
+                  {/* Metallic Shimmer Effect */}
+                  <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent z-10" />
+
+                  <span className="absolute top-4 left-4 z-20 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-primary-dark shadow-sm">
                     {tags[product.id]}
                   </span>
                   <button
@@ -71,12 +77,12 @@ export default function LatestModels() {
                   >
                     <Heart className="w-4 h-4" />
                   </button>
-                  <div className="relative w-full h-full transition-transform duration-500 group-hover:scale-105">
+                  <div className="relative w-full h-full">
                     <Image
                       src={product.image}
                       alt={product.title}
                       fill
-                      className="object-cover"
+                      className="object-contain"
                     />
                   </div>
                 </div>
