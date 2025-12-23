@@ -55,9 +55,21 @@ export default function ProductCard({
     <Link href={`/shop/${product.id}`} className="block group h-full">
       <div className="relative bg-white rounded-xl overflow-hidden pb-4 border border-transparent hover:border-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-500 ease-out h-full flex flex-col">
         {/* Image Container - Floating Effect - Merged with Card & Rounded */}
-        <div className="relative h-64 overflow-hidden bg-gray-50/50 group-hover:bg-purple-500/5 transition-colors duration-500 flex items-center justify-center w-full px-4 pt-4 pb-2">
-          {/* Metallic Shimmer Effect */}
-          <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent z-10" />
+        <div
+          className={`relative h-64 overflow-hidden transition-colors duration-500 flex items-center justify-center w-full px-4 pt-4 pb-2
+          ${
+            isShopPage
+              ? "bg-gray-50/50 group-hover:bg-gray-100/80"
+              : "bg-gray-50/50 group-hover:bg-purple-500/5"
+          }
+        `}
+        >
+          {/* Metallic Shimmer Effect (Original) */}
+          {!isShopPage && (
+            <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent z-10" />
+          )}
+
+          {/* Cinematic Sheen (Shop Page Only) */}
 
           {!product.image.includes("placeholder") ? (
             <Image
@@ -66,7 +78,7 @@ export default function ProductCard({
               fill
               className={`object-contain p-2 drop-shadow-lg transition-all duration-500 relative z-0 ${
                 isShopPage
-                  ? "group-hover:-translate-y-3 group-hover:drop-shadow-2xl"
+                  ? "group-hover:-translate-y-3 group-hover:scale-105 group-hover:drop-shadow-2xl"
                   : ""
               }`}
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -107,9 +119,21 @@ export default function ProductCard({
               <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
                 Price
               </span>
-              <span className="text-xl font-bold text-gray-900">
+              <span
+                className={`text-xl font-bold transition-all duration-300 ${
+                  isShopPage
+                    ? "text-gray-900 group-hover:text-[var(--primary-orange)] group-hover:drop-shadow-[0_0_10px_rgba(255,140,66,0.4)]"
+                    : "text-gray-900"
+                }`}
+              >
                 ${product.price.toFixed(0)}
-                <span className="text-sm text-gray-500 font-medium">
+                <span
+                  className={`text-sm font-medium ${
+                    isShopPage
+                      ? "text-gray-500 group-hover:text-orange-400"
+                      : "text-gray-500"
+                  }`}
+                >
                   .{product.price.toFixed(2).split(".")[1]}
                 </span>
               </span>
@@ -127,7 +151,13 @@ export default function ProductCard({
               {quantity === 0 ? (
                 <button
                   onClick={handleAddToCart}
-                  className="w-10 h-10 flex items-center justify-center rounded-full bg-[var(--primary-blue)] text-white shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed group-hover:rotate-90 duration-300"
+                  className={`w-10 h-10 flex items-center justify-center rounded-full text-white shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed group-hover:rotate-90 duration-300
+                    ${
+                      isShopPage
+                        ? "bg-gray-800 group-hover:bg-[var(--primary-blue)]"
+                        : "bg-[var(--primary-blue)]"
+                    }
+                  `}
                   disabled={!product.inStock}
                   title={product.inStock ? "Add to Cart" : "Out of Stock"}
                 >
