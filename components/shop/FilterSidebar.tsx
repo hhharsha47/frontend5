@@ -2,36 +2,55 @@
 
 import { useState } from "react";
 import { ChevronDown, RefreshCw, Filter } from "lucide-react";
-import { categories, scales } from "./shop-data";
+import { categories, scales, subcategories } from "./shop-data";
 
 interface FilterSidebarProps {
   selectedCategories: string[];
   setSelectedCategories: (categories: string[]) => void;
+  selectedSubcategories: string[];
+  setSelectedSubcategories: (subcategories: string[]) => void;
+  selectedTopics: string[];
+  setSelectedTopics: (topics: string[]) => void;
   selectedScales: string[];
   setSelectedScales: (scales: string[]) => void;
+  selectedYears: number[];
+  setSelectedYears: (years: number[]) => void;
   priceRange: [number, number];
   setPriceRange: (range: [number, number]) => void;
   inStockOnly: boolean;
   setInStockOnly: (val: boolean) => void;
   isNewOnly: boolean;
   setIsNewOnly: (val: boolean) => void;
+  availableTopics: string[]; // Dynamic topics based on other filters
+  availableYears: number[]; // Dynamic years
 }
 
 export default function FilterSidebar({
   selectedCategories,
   setSelectedCategories,
+  selectedSubcategories,
+  setSelectedSubcategories,
+  selectedTopics,
+  setSelectedTopics,
   selectedScales,
   setSelectedScales,
+  selectedYears,
+  setSelectedYears,
   priceRange,
   setPriceRange,
   inStockOnly,
   setInStockOnly,
   isNewOnly,
   setIsNewOnly,
+  availableTopics,
+  availableYears,
 }: FilterSidebarProps) {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     categories: true,
+    subcategories: true,
+    topics: true,
     scales: true,
+    years: true,
     price: true,
     status: true,
   });
@@ -66,6 +85,44 @@ export default function FilterSidebar({
     }
   };
 
+  const handleSubcategoryChange = (subcategory: string) => {
+    if (subcategory === "All") {
+      setSelectedSubcategories(["All"]);
+    } else {
+      let newSub = [...selectedSubcategories];
+      if (newSub.includes("All")) newSub = [];
+
+      if (newSub.includes(subcategory)) {
+        newSub = newSub.filter((c) => c !== subcategory);
+      } else {
+        newSub.push(subcategory);
+      }
+
+      if (newSub.length === 0) newSub = ["All"];
+      setSelectedSubcategories(newSub);
+    }
+  };
+
+  const handleTopicChange = (topic: string) => {
+    let newTopics = [...selectedTopics];
+    if (newTopics.includes(topic)) {
+      newTopics = newTopics.filter((t) => t !== topic);
+    } else {
+      newTopics.push(topic);
+    }
+    setSelectedTopics(newTopics);
+  };
+
+  const handleYearChange = (year: number) => {
+    let newYears = [...selectedYears];
+    if (newYears.includes(year)) {
+      newYears = newYears.filter((y) => y !== year);
+    } else {
+      newYears.push(year);
+    }
+    setSelectedYears(newYears);
+  };
+
   const handleScaleChange = (scale: string) => {
     let newScales = [...selectedScales];
     if (newScales.includes(scale)) {
@@ -78,6 +135,9 @@ export default function FilterSidebar({
 
   const handleReset = () => {
     setSelectedCategories(["All"]);
+    setSelectedSubcategories(["All"]);
+    setSelectedTopics([]);
+    setSelectedYears([]);
     setSelectedScales([]);
     setPriceRange([0, 500]);
     setInStockOnly(false);
@@ -101,7 +161,7 @@ export default function FilterSidebar({
       </div>
 
       {/* Categories */}
-      <div className="mb-8">
+      <div className="mb-6">
         <button
           onClick={() => toggleSection("categories")}
           className="w-full flex items-center justify-between mb-4 group"
@@ -145,11 +205,110 @@ export default function FilterSidebar({
           </div>
         )}
       </div>
+      <div className="h-px bg-gray-100 w-full mb-6"></div>
 
-      <div className="h-px bg-gray-100 w-full mb-8"></div>
+      {/* Subcategories */}
+      <div className="mb-6">
+        <button
+          onClick={() => toggleSection("subcategories")}
+          className="w-full flex items-center justify-between mb-4 group"
+        >
+          <span className="font-outfit font-bold text-gray-800 text-lg">
+            Subcategory
+          </span>
+          <ChevronDown
+            className={`w-5 h-5 text-gray-400 transition-transform ${
+              openSections.subcategories ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        {openSections.subcategories && (
+          <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+            {subcategories.map((sub) => (
+              <label
+                key={sub}
+                className="flex items-center gap-3 cursor-pointer group"
+              >
+                <div className="relative flex items-center">
+                  <input
+                    type="checkbox"
+                    className="peer h-4 w-4 rounded border-2 border-gray-200 text-[var(--primary-blue)] focus:ring-offset-0 focus:ring-0 checked:bg-[var(--primary-blue)] checked:border-[var(--primary-blue)] transition-all"
+                    checked={selectedSubcategories.includes(sub)}
+                    onChange={() => handleSubcategoryChange(sub)}
+                  />
+                </div>
+                <span
+                  className={`text-sm font-medium transition-colors ${
+                    selectedSubcategories.includes(sub)
+                      ? "text-[var(--primary-blue)]"
+                      : "text-gray-500 group-hover:text-[var(--primary-blue)]"
+                  }`}
+                >
+                  {sub}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="h-px bg-gray-100 w-full mb-6"></div>
+
+      {/* Topics */}
+      <div className="mb-6">
+        <button
+          onClick={() => toggleSection("topics")}
+          className="w-full flex items-center justify-between mb-4 group"
+        >
+          <span className="font-outfit font-bold text-gray-800 text-lg">
+            Topic
+          </span>
+          <ChevronDown
+            className={`w-5 h-5 text-gray-400 transition-transform ${
+              openSections.topics ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        {openSections.topics && (
+          <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+            {availableTopics.length === 0 && (
+              <span className="text-sm text-gray-400 italic">
+                No topics available for current selection
+              </span>
+            )}
+            {availableTopics.map((topic) => (
+              <label
+                key={topic}
+                className="flex items-center gap-3 cursor-pointer group"
+              >
+                <div className="relative flex items-center">
+                  <input
+                    type="checkbox"
+                    className="peer h-4 w-4 rounded border-2 border-gray-200 text-[var(--primary-blue)] focus:ring-offset-0 focus:ring-0 checked:bg-[var(--primary-blue)] checked:border-[var(--primary-blue)] transition-all"
+                    checked={selectedTopics.includes(topic)}
+                    onChange={() => handleTopicChange(topic)}
+                  />
+                </div>
+                <span
+                  className={`text-sm font-medium transition-colors ${
+                    selectedTopics.includes(topic)
+                      ? "text-[var(--primary-blue)]"
+                      : "text-gray-500 group-hover:text-[var(--primary-blue)]"
+                  }`}
+                >
+                  {topic}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="h-px bg-gray-100 w-full mb-6"></div>
 
       {/* Scales */}
-      <div className="mb-8">
+      <div className="mb-6">
         <button
           onClick={() => toggleSection("scales")}
           className="w-full flex items-center justify-between mb-4"
@@ -183,12 +342,64 @@ export default function FilterSidebar({
         )}
       </div>
 
-      <div className="h-px bg-gray-100 w-full mb-8"></div>
+      <div className="h-px bg-gray-100 w-full mb-6"></div>
 
-      <div className="h-px bg-gray-100 w-full mb-8"></div>
+      {/* Years */}
+      <div className="mb-6">
+        <button
+          onClick={() => toggleSection("years")}
+          className="w-full flex items-center justify-between mb-4 group"
+        >
+          <span className="font-outfit font-bold text-gray-800 text-lg">
+            Year
+          </span>
+          <ChevronDown
+            className={`w-5 h-5 text-gray-400 transition-transform ${
+              openSections.years ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        {openSections.years && (
+          <div className="space-y-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+            {availableYears.length === 0 && (
+              <span className="text-sm text-gray-400 italic">
+                No years available
+              </span>
+            )}
+            {availableYears
+              .sort((a, b) => b - a)
+              .map((year) => (
+                <label
+                  key={year}
+                  className="flex items-center gap-3 cursor-pointer group"
+                >
+                  <div className="relative flex items-center">
+                    <input
+                      type="checkbox"
+                      className="peer h-4 w-4 rounded border-2 border-gray-200 text-[var(--primary-blue)] focus:ring-offset-0 focus:ring-0 checked:bg-[var(--primary-blue)] checked:border-[var(--primary-blue)] transition-all"
+                      checked={selectedYears.includes(year)}
+                      onChange={() => handleYearChange(year)}
+                    />
+                  </div>
+                  <span
+                    className={`text-sm font-medium transition-colors ${
+                      selectedYears.includes(year)
+                        ? "text-[var(--primary-blue)]"
+                        : "text-gray-500 group-hover:text-[var(--primary-blue)]"
+                    }`}
+                  >
+                    {year}
+                  </span>
+                </label>
+              ))}
+          </div>
+        )}
+      </div>
+      <div className="h-px bg-gray-100 w-full mb-6"></div>
 
       {/* Price Range */}
-      <div className="mb-8">
+      <div className="mb-6">
         <button
           onClick={() => toggleSection("price")}
           className="w-full flex items-center justify-between mb-6 block"
@@ -253,7 +464,7 @@ export default function FilterSidebar({
         )}
       </div>
 
-      <div className="h-px bg-gray-100 w-full mb-8"></div>
+      <div className="h-px bg-gray-100 w-full mb-6"></div>
 
       {/* Special Filters (Status) */}
       <div>

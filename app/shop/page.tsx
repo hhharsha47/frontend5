@@ -13,7 +13,12 @@ export default function ShopPage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([
     "All",
   ]);
+  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([
+    "All",
+  ]);
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [selectedScales, setSelectedScales] = useState<string[]>([]);
+  const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
   const [inStockOnly, setInStockOnly] = useState(false);
   const [isNewOnly, setIsNewOnly] = useState(false);
@@ -27,16 +32,30 @@ export default function ShopPage() {
         // Search Filter
         const matchesSearch =
           product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          product.category.toLowerCase().includes(searchQuery.toLowerCase());
+          product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.topic.toLowerCase().includes(searchQuery.toLowerCase());
 
         // Category Filter
         const matchesCategory =
           selectedCategories.includes("All") ||
           selectedCategories.includes(product.category);
 
+        // Subcategory Filter
+        const matchesSubcategory =
+          selectedSubcategories.includes("All") ||
+          selectedSubcategories.includes(product.subcategory);
+
+        // Topic Filter
+        const matchesTopic =
+          selectedTopics.length === 0 || selectedTopics.includes(product.topic);
+
         // Scale Filter
         const matchesScale =
           selectedScales.length === 0 || selectedScales.includes(product.scale);
+
+        // Year Filter
+        const matchesYear =
+          selectedYears.length === 0 || selectedYears.includes(product.year);
 
         // Price Filter
         const matchesPrice =
@@ -49,7 +68,10 @@ export default function ShopPage() {
         return (
           matchesSearch &&
           matchesCategory &&
+          matchesSubcategory &&
+          matchesTopic &&
           matchesScale &&
+          matchesYear &&
           matchesPrice &&
           matchesStock &&
           matchesNew
@@ -62,7 +84,7 @@ export default function ShopPage() {
           case "price_desc":
             return b.price - a.price;
           case "newest":
-            return (a.isNew ? -1 : 1) - (b.isNew ? -1 : 1); // Mock logic for newness
+            return (a.isNew ? -1 : 1) - (b.isNew ? -1 : 1);
           default:
             return 0; // Popularity implied by default order
         }
@@ -70,12 +92,44 @@ export default function ShopPage() {
   }, [
     searchQuery,
     selectedCategories,
+    selectedSubcategories,
+    selectedTopics,
     selectedScales,
+    selectedYears,
     priceRange,
     inStockOnly,
     isNewOnly,
     sortOption,
   ]);
+
+  // Derive available filter options based on current selection (except the filter itself to avoid disappearing options)
+  // For simplicity here, we can derive from the main Category selection, as that's the primary driver.
+  const availableTopics = useMemo(() => {
+    // Filter products based on Category and Subcategory selections ONLY to determine available topics
+    const relevantProducts = initialProducts.filter(
+      (p) =>
+        (selectedCategories.includes("All") ||
+          selectedCategories.includes(p.category)) &&
+        (selectedSubcategories.includes("All") ||
+          selectedSubcategories.includes(p.subcategory))
+    );
+    // Extract unique topics
+    return Array.from(new Set(relevantProducts.map((p) => p.topic))).sort();
+  }, [selectedCategories, selectedSubcategories]);
+
+  const availableYears = useMemo(() => {
+    // Filter products based on Category and Subcategory selections
+    const relevantProducts = initialProducts.filter(
+      (p) =>
+        (selectedCategories.includes("All") ||
+          selectedCategories.includes(p.category)) &&
+        (selectedSubcategories.includes("All") ||
+          selectedSubcategories.includes(p.subcategory))
+    );
+    return Array.from(new Set(relevantProducts.map((p) => p.year))).sort(
+      (a, b) => b - a
+    );
+  }, [selectedCategories, selectedSubcategories]);
 
   return (
     <div className="min-h-screen bg-[#FFFFFE]">
@@ -146,14 +200,22 @@ export default function ShopPage() {
             <FilterSidebar
               selectedCategories={selectedCategories}
               setSelectedCategories={setSelectedCategories}
+              selectedSubcategories={selectedSubcategories}
+              setSelectedSubcategories={setSelectedSubcategories}
+              selectedTopics={selectedTopics}
+              setSelectedTopics={setSelectedTopics}
               selectedScales={selectedScales}
               setSelectedScales={setSelectedScales}
+              selectedYears={selectedYears}
+              setSelectedYears={setSelectedYears}
               priceRange={priceRange}
               setPriceRange={setPriceRange}
               inStockOnly={inStockOnly}
               setInStockOnly={setInStockOnly}
               isNewOnly={isNewOnly}
               setIsNewOnly={setIsNewOnly}
+              availableTopics={availableTopics}
+              availableYears={availableYears}
             />
           </aside>
 
@@ -174,14 +236,22 @@ export default function ShopPage() {
               <FilterSidebar
                 selectedCategories={selectedCategories}
                 setSelectedCategories={setSelectedCategories}
+                selectedSubcategories={selectedSubcategories}
+                setSelectedSubcategories={setSelectedSubcategories}
+                selectedTopics={selectedTopics}
+                setSelectedTopics={setSelectedTopics}
                 selectedScales={selectedScales}
                 setSelectedScales={setSelectedScales}
+                selectedYears={selectedYears}
+                setSelectedYears={setSelectedYears}
                 priceRange={priceRange}
                 setPriceRange={setPriceRange}
                 inStockOnly={inStockOnly}
                 setInStockOnly={setInStockOnly}
                 isNewOnly={isNewOnly}
                 setIsNewOnly={setIsNewOnly}
+                availableTopics={availableTopics}
+                availableYears={availableYears}
               />
             </div>
           )}
