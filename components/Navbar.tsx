@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Search, ShoppingCart, Phone } from "lucide-react";
+import { Search, ShoppingCart, Phone, User } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 
 const navLinks = [
@@ -77,6 +77,13 @@ export default function Navbar() {
                 {count}
               </span>
             )}
+          </Link>
+          <Link
+            href="/orders"
+            className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-600 hover:border-primary hover:text-primary hover:shadow-sm transition-all"
+            title="My Orders"
+          >
+            <User className="w-4 h-4" />
           </Link>
           <button className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-600 hover:border-primary hover:text-primary hover:shadow-sm transition-all">
             <Phone className="w-4 h-4" />
