@@ -10,6 +10,7 @@ import {
   X,
   Hammer,
   FileText,
+  Check,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -256,6 +257,41 @@ export default function OrdersPage() {
   // Custom Request Modals
   const [viewRequest, setViewRequest] = useState<CustomRequest | null>(null);
   const [quoteRequest, setQuoteRequest] = useState<CustomRequest | null>(null);
+
+  // Edit State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<{
+    projectTitle: string;
+    description: string;
+  }>({ projectTitle: "", description: "" });
+
+  const handleSaveEdit = () => {
+    if (viewRequest) {
+      // In a real app, you would make an API call here.
+      // For now, we'll just update the local view state and show a toast.
+      const updatedRequest = {
+        ...viewRequest,
+        projectTitle: editForm.projectTitle,
+        description: editForm.description,
+      };
+      setViewRequest(updatedRequest);
+
+      // Also update the mock data locally so the list reflects changes
+      const index = mockCustomRequests.findIndex(
+        (r) => r.id === viewRequest.id
+      );
+      if (index !== -1) {
+        mockCustomRequests[index] = {
+          ...mockCustomRequests[index],
+          projectTitle: editForm.projectTitle,
+          description: editForm.description,
+        };
+      }
+
+      setIsEditing(false);
+      toast.success("Request details updated successfully!");
+    }
+  };
 
   const filteredStandardOrders = mockOrders.filter((order) => {
     const matchesSearch =
@@ -742,7 +778,7 @@ export default function OrdersPage() {
                       }`}
                     >
                       {step.completed && (
-                        <CheckCircle className="w-3 h-3 text-white" />
+                        <Check className="w-3 h-3 text-white" /> // Kept size small to fit in 6x6 container (24px). w-3 is 12px.
                       )}
                     </div>
                     <div>
@@ -859,7 +895,10 @@ export default function OrdersPage() {
                 </p>
               </div>
               <button
-                onClick={() => setViewRequest(null)}
+                onClick={() => {
+                  setViewRequest(null);
+                  setIsEditing(false);
+                }}
                 className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -879,15 +918,53 @@ export default function OrdersPage() {
                     />
                   </div>
                 </div>
-                <div>
-                  <h4 className="font-bold text-lg text-slate-900 mb-2">
-                    {viewRequest.projectTitle}
-                  </h4>
-                  <p className="text-slate-600 text-sm leading-relaxed mb-6">
-                    {viewRequest.description}
-                  </p>
+                <div className="flex-1">
+                  {isEditing ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                          Project Title
+                        </label>
+                        <input
+                          value={editForm.projectTitle}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              projectTitle: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                          Description
+                        </label>
+                        <textarea
+                          rows={6}
+                          value={editForm.description}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              description: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <h4 className="font-bold text-lg text-slate-900 mb-2">
+                        {viewRequest.projectTitle}
+                      </h4>
+                      <p className="text-slate-600 text-sm leading-relaxed mb-6">
+                        {viewRequest.description}
+                      </p>
+                    </>
+                  )}
                   {viewRequest.estimatedCost && (
-                    <div>
+                    <div className="mt-4">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                         Estimated Cost
                       </p>
@@ -918,7 +995,7 @@ export default function OrdersPage() {
                           }`}
                         >
                           {step.completed && (
-                            <CheckCircle className="w-3 h-3 text-white" />
+                            <Check className="w-3 h-3 text-white" />
                           )}
                           {step.current && (
                             <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse" />
@@ -947,13 +1024,49 @@ export default function OrdersPage() {
               )}
             </div>
 
-            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end shrink-0">
-              <button
-                onClick={() => setViewRequest(null)}
-                className="px-6 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-50 transition-colors text-sm"
-              >
-                Close Details
-              </button>
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-between items-center shrink-0">
+              <div>
+                {viewRequest.status === "Pending Approval" && !isEditing && (
+                  <button
+                    onClick={() => {
+                      setIsEditing(true);
+                      setEditForm({
+                        projectTitle: viewRequest.projectTitle,
+                        description: viewRequest.description,
+                      });
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition-colors text-sm shadow-sm"
+                  >
+                    <Hammer className="w-4 h-4" />
+                    Edit Request
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-3">
+                {isEditing ? (
+                  <>
+                    <button
+                      onClick={() => setIsEditing(false)}
+                      className="px-6 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-50 transition-colors text-sm"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveEdit}
+                      className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 text-sm"
+                    >
+                      Save Changes
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setViewRequest(null)}
+                    className="px-6 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-50 transition-colors text-sm"
+                  >
+                    Close Details
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
