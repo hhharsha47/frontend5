@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import {
   Search,
   MoreHorizontal,
@@ -11,6 +12,8 @@ import {
   Trash2,
   X,
   Download,
+  DollarSign,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,6 +33,7 @@ interface DesignRequest {
   status: RequestStatus;
   date: string;
   budget: string;
+  image?: string;
 }
 
 const initialRequests: DesignRequest[] = [
@@ -43,6 +47,7 @@ const initialRequests: DesignRequest[] = [
     status: "Pending",
     date: "2024-03-15",
     budget: "$850 - $1,200",
+    image: "/images/products/f14_tomcat_model.png",
   },
   {
     id: "REQ-002",
@@ -54,6 +59,7 @@ const initialRequests: DesignRequest[] = [
     status: "In Review",
     date: "2024-03-14",
     budget: "$400 - $600",
+    image: "/images/products/p51d_mustang_model.png",
   },
   {
     id: "REQ-003",
@@ -65,6 +71,7 @@ const initialRequests: DesignRequest[] = [
     status: "Approved",
     date: "2024-03-12",
     budget: "$2,500+",
+    image: "/images/products/su57_felon_model.png",
   },
   {
     id: "REQ-004",
@@ -74,6 +81,7 @@ const initialRequests: DesignRequest[] = [
     status: "Rejected",
     date: "2024-03-10",
     budget: "$300",
+    image: "/images/products/millennium_falcon_model.png",
   },
   {
     id: "REQ-005",
@@ -83,6 +91,7 @@ const initialRequests: DesignRequest[] = [
     status: "Completed",
     date: "2024-02-28",
     budget: "$1,500",
+    image: "/images/products/tiger_tank_model.png",
   },
 ];
 
@@ -121,6 +130,7 @@ export default function CustomDesignPage() {
       budget: newRequest.budget || "TBD",
       status: "Pending",
       message: newRequest.message || "",
+      image: "/images/placeholder-model.png", // Default placeholder
     };
 
     setRequests([request, ...requests]);
@@ -155,6 +165,23 @@ export default function CustomDesignPage() {
       setRequests(updatedRequests);
       setSelectedRequest({ ...selectedRequest, status });
       toast.success(`Status updated to ${status}`);
+    }
+  };
+
+  const handleBudgetChange = (newBudget: string) => {
+    if (selectedRequest) {
+      const updatedRequests = requests.map((r) =>
+        r.id === selectedRequest.id ? { ...r, budget: newBudget } : r
+      );
+      setRequests(updatedRequests);
+      // Update local state immediately for responsiveness
+      setSelectedRequest({ ...selectedRequest, budget: newBudget });
+    }
+  };
+
+  const handleViewFullImage = (imageUrl: string) => {
+    if (imageUrl) {
+      window.open(imageUrl, "_blank");
     }
   };
 
@@ -598,22 +625,60 @@ export default function CustomDesignPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                        Budget
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                        Budget{" "}
+                        <span className="text-indigo-600 text-[10px] bg-indigo-50 px-1.5 rounded-sm">
+                          EDITABLE
+                        </span>
                       </label>
-                      <p className="font-medium text-slate-900">
-                        {selectedRequest.budget}
-                      </p>
+                      <div className="relative">
+                        <input
+                          value={selectedRequest.budget}
+                          onChange={(e) => handleBudgetChange(e.target.value)}
+                          onBlur={() => toast.success("Budget updated!")}
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-900 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all hover:border-indigo-300"
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
                         Date
                       </label>
-                      <p className="font-medium text-slate-900">
+                      <p className="font-medium text-slate-900 py-2">
                         {selectedRequest.date}
                       </p>
                     </div>
                   </div>
+
+                  {/* Image Preview - MOVED HERE */}
+                  {selectedRequest.image ? (
+                    <div
+                      className="relative w-full aspect-video rounded-xl overflow-hidden border border-slate-200 shadow-sm group cursor-pointer mt-4"
+                      onClick={() =>
+                        handleViewFullImage(selectedRequest.image!)
+                      }
+                    >
+                      <Image
+                        src={selectedRequest.image}
+                        alt={selectedRequest.subject}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        unoptimized
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <div className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-bold text-slate-800 shadow-lg flex items-center gap-2">
+                          <ExternalLink className="w-3 h-3" />
+                          View Full Image
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full aspect-video bg-slate-50 border border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-400 mt-4">
+                      <span className="text-sm font-medium">
+                        No Reference Image
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 

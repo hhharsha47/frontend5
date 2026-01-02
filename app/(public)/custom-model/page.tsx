@@ -12,7 +12,6 @@ import {
   Clock,
   ShieldCheck,
   Zap,
-  ChevronRight,
 } from "lucide-react";
 
 type FormData = {
@@ -28,12 +27,7 @@ type FormData = {
 export default function CustomModelPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<FormData>();
+  const { register, handleSubmit, reset } = useForm<FormData>();
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
@@ -59,7 +53,7 @@ export default function CustomModelPage() {
           className="object-cover"
           priority
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-50 via-slate-50/50 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-t from-slate-50 via-slate-50/50 to-transparent" />
 
         <div className="container relative z-10 pb-20 px-4 md:px-0">
           <motion.div
@@ -74,7 +68,7 @@ export default function CustomModelPage() {
             </span>
             <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-slate-900 mb-6 leading-[1.1]">
               Engineered to <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">
+              <span className="text-transparent bg-clip-text bg-linear-to-r from-indigo-600 to-violet-600">
                 Perfection.
               </span>
             </h1>
@@ -129,8 +123,8 @@ export default function CustomModelPage() {
                   ))}
                 </div>
                 <p className="font-medium italic text-indigo-100 mb-6 leading-relaxed">
-                  "SkyScale recreated my grandfather's P-51D down to the
-                  specific nose art. It brought tears to his eyes."
+                  &quot;SkyScale recreated my grandfather&apos;s P-51D down to
+                  the specific nose art. It brought tears to his eyes.&quot;
                 </p>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-indigo-700 flex items-center justify-center font-bold text-xs">
@@ -154,7 +148,7 @@ export default function CustomModelPage() {
             className="lg:col-span-8"
           >
             <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl shadow-indigo-900/5 border border-slate-100 relative overflow-hidden">
-              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500" />
+              <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-indigo-500 via-purple-500 to-indigo-500" />
 
               <div className="flex items-end justify-between mb-10">
                 <div>
@@ -162,7 +156,7 @@ export default function CustomModelPage() {
                     Commission Request
                   </h2>
                   <p className="text-slate-500">
-                    Share your vision. We'll handle the engineering.
+                    Share your vision. We&apos;ll handle the engineering.
                   </p>
                 </div>
                 <div className="hidden md:block text-right">
@@ -299,7 +293,7 @@ function InputGroup({
   );
 }
 
-import { X, FileText, Image as LucideImage } from "lucide-react";
+import { X, FileText } from "lucide-react";
 
 function FileUploadArea({
   files,

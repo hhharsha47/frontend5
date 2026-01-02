@@ -23,6 +23,7 @@ export const metadata: Metadata = {
 };
 
 import { CartProvider } from "@/context/CartContext";
+import { UnderConstructionProvider } from "@/context/UnderConstructionContext";
 
 export default function RootLayout({
   children,
@@ -35,8 +36,10 @@ export default function RootLayout({
         className={`${inter.variable} ${outfit.variable} antialiased min-h-screen flex flex-col`}
       >
         <CartProvider>
-          {children}
-          <Toaster position="bottom-right" richColors />
+          <UnderConstructionProvider>
+            {children}
+            <Toaster position="bottom-right" richColors />
+          </UnderConstructionProvider>
         </CartProvider>
       </body>
     </html>

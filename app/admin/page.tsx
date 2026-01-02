@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useState, useEffect } from "react";
 
 export default function AdminDashboardPage() {
   const stats = [
@@ -57,7 +58,8 @@ export default function AdminDashboardPage() {
     },
   ];
 
-  const recentActivity = [
+  // State to hold activity
+  const [activities, setActivities] = useState([
     {
       id: 1,
       action: "New Order",
@@ -98,7 +100,28 @@ export default function AdminDashboardPage() {
       initials: "SA",
       color: "bg-slate-100 text-slate-700",
     },
-  ];
+  ]);
+
+  // Load new activities from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("adminRecentActivity");
+    if (saved) {
+      try {
+        const newActivities = JSON.parse(saved);
+        if (Array.isArray(newActivities)) {
+          // Merge new activities at the top
+          setActivities((prev) => {
+            // Avoid duplicates if possible (simple check by ID usually, but here just prepend)
+            // Filter out any that might match existing IDs if we want to be safe,
+            // but for now simple concatenation is fine for this demo.
+            return [...newActivities, ...prev];
+          });
+        }
+      } catch (e) {
+        console.error("Failed to parse admin activity", e);
+      }
+    }
+  }, []);
 
   const handleDownloadReport = () => {
     toast.success("Downloading Dashboard Report...");
@@ -191,7 +214,7 @@ export default function AdminDashboardPage() {
             </button>
           </div>
           <div className="divide-y divide-slate-100">
-            {recentActivity.map((item) => (
+            {activities.map((item) => (
               <div
                 key={item.id}
                 className="p-6 flex items-center gap-4 hover:bg-slate-50/80 transition-colors group cursor-pointer"

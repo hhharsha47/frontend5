@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 
 import { useCart } from "@/context/CartContext";
+import { useUnderConstruction } from "@/context/UnderConstructionContext";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -30,6 +31,7 @@ export default function ProductDetailPage() {
   const [isLiked, setIsLiked] = useState(false);
   const [activeTab, setActiveTab] = useState("description");
   const { addToCart } = useCart();
+  const { showPopup } = useUnderConstruction();
 
   useEffect(() => {
     if (params.id) {
@@ -55,10 +57,8 @@ export default function ProductDetailPage() {
     setQuantity((prev) => (prev > 1 ? prev - 1 : 1));
 
   const handleAddToCart = () => {
-    if (product) {
-      addToCart(product, quantity);
-      toast.success(`Added ${quantity} x ${product.title} to cart`);
-    }
+    // Show under construction popup
+    showPopup();
   };
 
   return (
