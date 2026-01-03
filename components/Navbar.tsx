@@ -61,6 +61,7 @@ export default function Navbar() {
               type="text"
               placeholder="Search..."
               className="w-64 lg:w-80 h-11 pl-5 pr-12 rounded-full bg-gray-100 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm"
+              suppressHydrationWarning
             />
             <button className="absolute right-1 top-1 bottom-1 p-1.5 rounded-full text-gray-500 hover:text-primary hover:bg-white transition-colors">
               <Search className="w-4 h-4" />
@@ -79,9 +80,9 @@ export default function Navbar() {
             )}
           </Link>
           <Link
-            href="/orders"
+            href="/profile"
             className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-600 hover:border-primary hover:text-primary hover:shadow-sm transition-all"
-            title="My Orders"
+            title="My Profile"
           >
             <User className="w-4 h-4" />
           </Link>

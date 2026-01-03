@@ -9,6 +9,9 @@ import {
   LogOut,
   Package,
   Users,
+  TrendingUp,
+  CreditCard,
+  ShoppingBag,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -21,6 +24,9 @@ export default function AdminLayout({
 
   const navItems = [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
+    { name: "Analytics", href: "/admin/analytics", icon: TrendingUp },
+    { name: "Transactions", href: "/admin/transactions", icon: CreditCard },
+    { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
     { name: "Custom Designs", href: "/admin/custom-design", icon: PenTool },
     { name: "Products", href: "/admin/products", icon: Package },
     { name: "Customers", href: "/admin/customers", icon: Users },
