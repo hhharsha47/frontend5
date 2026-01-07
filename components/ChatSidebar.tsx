@@ -77,24 +77,23 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
       >
         <div className="flex-1 flex flex-col min-w-[280px] overflow-hidden">
           {/* Header */}
-          <div className="p-4 space-y-4 shrink-0">
+          <div className="p-4 space-y-3 shrink-0">
             <button
               onClick={() => {
                 onNewChat();
                 if (isMobile) setIsOpen(false);
               }}
-              className="w-full flex items-center justify-center gap-2 bg-linear-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-medium py-3.5 rounded-2xl transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-[0.98] group relative overflow-hidden"
+              className="w-full flex items-center justify-center gap-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-3 rounded-xl transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
             >
-              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-              <MessageSquarePlus className="w-5 h-5 relative z-10" />
-              <span className="relative z-10">New Conversation</span>
+              <MessageSquarePlus className="w-4.5 h-4.5" />
+              <span>New Conversation</span>
             </button>
 
             <Link
               href="/"
-              className="w-full flex items-center justify-center gap-2 text-slate-500 hover:text-indigo-600 font-medium py-2 rounded-xl transition-colors text-sm group"
+              className="w-full flex items-center justify-center gap-2 text-slate-500 hover:text-slate-800 font-medium py-2 rounded-lg hover:bg-slate-50 transition-colors text-xs"
             >
-              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              <ArrowLeft className="w-3.5 h-3.5" />
               <span>Back to Home</span>
             </Link>
           </div>

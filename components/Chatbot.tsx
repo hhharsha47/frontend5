@@ -2,14 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  MessageCircle,
-  X,
-  Send,
-  Sparkles,
-  User,
-  ChevronRight,
-} from "lucide-react";
+import { MessageCircle, X, Send, Sparkles, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Message = {
@@ -487,8 +480,17 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
                   {/* Messages Area */}
                   <div
                     ref={chatContainerRef}
-                    className="relative flex-1 overflow-y-auto w-full max-w-4xl mx-auto px-4 lg:px-8 py-8 space-y-8 scrollbar-thin scrollbar-thumb-indigo-200/50 scrollbar-track-transparent hover:scrollbar-thumb-indigo-300/80 transition-colors"
+                    className="relative flex-1 overflow-y-auto w-full max-w-4xl mx-auto px-4 lg:px-8 py-8 space-y-8 no-scrollbar"
                   >
+                    <style jsx global>{`
+                      .no-scrollbar::-webkit-scrollbar {
+                        display: none;
+                      }
+                      .no-scrollbar {
+                        -ms-overflow-style: none;
+                        scrollbar-width: none;
+                      }
+                    `}</style>
                     {messages.map((msg) => (
                       <motion.div
                         key={msg.id}
@@ -509,10 +511,10 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
                         <div className="flex flex-col gap-2 max-w-[85%]">
                           <div
                             className={cn(
-                              "group relative px-6 py-3.5 text-sm md:text-base leading-relaxed shadow-sm transition-all duration-300",
+                              "group relative px-5 py-3 text-[15px] leading-7 shadow-sm transition-all duration-300",
                               msg.role === "bot"
-                                ? "bg-white/80 backdrop-blur-sm text-slate-700 rounded-2xl rounded-tl-sm border border-white/60 hover:shadow-md"
-                                : "bg-linear-to-br from-indigo-600 via-violet-600 to-indigo-700 text-white rounded-3xl rounded-tr-sm shadow-indigo-500/20 shadow-lg hover:shadow-xl hover:shadow-indigo-500/30"
+                                ? "bg-white text-slate-700 rounded-2xl rounded-tl-sm border border-slate-100"
+                                : "bg-[#4F46E5] text-white rounded-2xl rounded-tr-sm shadow-indigo-500/20 shadow-md"
                             )}
                           >
                             <p className="whitespace-pre-wrap font-medium">
@@ -522,7 +524,7 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
 
                           {/* Options rendering */}
                           {msg.type === "options" && msg.options && (
-                            <div className="flex flex-wrap gap-2 mt-2">
+                            <div className="flex flex-wrap gap-2 mt-3">
                               {msg.options.map((opt, idx) => (
                                 <motion.button
                                   key={opt.value}
@@ -537,10 +539,9 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
                                         : opt.value
                                     )
                                   }
-                                  className="group flex items-center gap-2 text-xs font-semibold bg-white/50 hover:bg-white text-indigo-700 px-4 py-2.5 rounded-xl transition-all border border-white/60 hover:border-indigo-200 shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                                  className="px-5 py-2.5 bg-white border border-indigo-100 hover:border-indigo-300 text-indigo-700 text-[13px] font-medium rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
                                 >
                                   {opt.label}
-                                  <ChevronRight className="w-3 h-3 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
                                 </motion.button>
                               ))}
                             </div>
