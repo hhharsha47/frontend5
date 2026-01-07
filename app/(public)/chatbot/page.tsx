@@ -127,7 +127,7 @@ export default function ChatbotPage() {
           </div>
 
           {/* Chatbot Container */}
-          <div className="flex-1 bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-100 relative">
+          <div className="flex-1 min-w-0 bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-100 relative h-[600px] lg:h-[700px]">
             <Chatbot ref={chatbotRef} inline={true} />
           </div>
         </div>

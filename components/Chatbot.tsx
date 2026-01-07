@@ -390,7 +390,10 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
           )}
         >
           <div
-            className={cn("pointer-events-auto", inline ? "w-full h-full" : "")}
+            className={cn(
+              "pointer-events-auto overflow-hidden",
+              inline ? "w-full h-full flex flex-col min-h-0" : ""
+            )}
           >
             <AnimatePresence>
               {isOpen && (
@@ -402,7 +405,7 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
                   className={cn(
                     "bg-white/80 backdrop-blur-xl border border-white/40 rounded-4xl shadow-2xl flex flex-col overflow-hidden ring-1 ring-black/5",
                     inline
-                      ? "w-full h-full shadow-none border-0 rounded-none bg-transparent"
+                      ? "w-full h-full flex flex-col overflow-hidden shadow-none border-0 rounded-none bg-transparent"
                       : "mb-4 w-[380px] h-[600px]"
                   )}
                 >
@@ -438,7 +441,8 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
                   {/* Messages Area */}
                   <div
                     ref={chatContainerRef}
-                    className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-indigo-100 scrollbar-track-transparent"
+                    className="overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-indigo-100 scrollbar-track-transparent min-h-0"
+                    style={{ height: "calc(100% - 160px)" }}
                   >
                     {messages.map((msg) => (
                       <motion.div
