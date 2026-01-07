@@ -29,47 +29,50 @@ type OrderState = {
 
 // --- Animations ---
 const chatContainerVariants = {
-  hidden: { opacity: 0, y: 20, scale: 0.95 },
+  hidden: { opacity: 0, y: 20, scale: 0.95, filter: "blur(4px)" },
   visible: {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.3, ease: "easeOut" },
+    filter: "blur(0px)",
+    transition: { duration: 0.35, ease: [0.23, 1, 0.32, 1] },
   },
   exit: {
     opacity: 0,
     y: 20,
     scale: 0.95,
+    filter: "blur(4px)",
     transition: { duration: 0.2 },
   },
 };
 
 const messageVariants = {
-  hidden: { opacity: 0, y: 20, scale: 0.95 },
+  hidden: { opacity: 0, y: 10, scale: 0.98 },
   visible: {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { type: "spring", stiffness: 300, damping: 24 },
+    transition: { type: "spring", stiffness: 400, damping: 25 },
   },
 };
 
 const optionVariants = {
-  hidden: { opacity: 0, x: -10 },
+  hidden: { opacity: 0, y: 10, filter: "blur(2px)" },
   visible: (i: number) => ({
     opacity: 1,
-    x: 0,
-    transition: { delay: i * 0.1, duration: 0.3 },
+    y: 0,
+    filter: "blur(0px)",
+    transition: { delay: i * 0.08, duration: 0.3 },
   }),
 };
 
 const typingDotVariants = {
-  initial: { y: 0, opacity: 0.5 },
+  initial: { y: 0, opacity: 0.4 },
   animate: {
-    y: -4,
+    y: -5,
     opacity: 1,
     transition: {
-      duration: 0.4,
+      duration: 0.6,
       repeat: Infinity,
       repeatType: "mirror" as const,
       ease: "easeInOut",
@@ -81,36 +84,72 @@ export type ChatbotHandle = {
   triggerAction: (action: string) => void;
 };
 
-const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
-  ({ inline = false }, ref) => {
+type ChatbotProps = {
+  inline?: boolean;
+  initialMessages?: Message[];
+  initialMode?: "init" | "order" | "chat";
+  initialOrderStep?: number;
+  initialOrderData?: OrderState;
+  onStateChange?: (state: {
+    messages: Message[];
+    mode: "init" | "order" | "chat";
+    orderStep: number;
+    orderData: OrderState;
+  }) => void;
+};
+
+const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
+  (
+    {
+      inline = false,
+      initialMessages,
+      initialMode,
+      initialOrderStep,
+      initialOrderData,
+      onStateChange,
+    },
+    ref
+  ) => {
     const [isOpen, setIsOpen] = useState(inline);
     const [isTyping, setIsTyping] = useState(false);
     const [inputValue, setInputValue] = useState("");
-    const [messages, setMessages] = useState<Message[]>([
-      {
-        id: "1",
-        role: "bot",
-        content: "Hello! Welcome to SkyScale. How can I assist you today?",
-        type: "options",
-        options: [
-          { label: "Start Custom Order", value: "start_order" },
-          { label: "Ask a Question", value: "ask_question" },
-        ],
-      },
-    ]);
-    const [mode, setMode] = useState<"init" | "order" | "chat">("init");
-    const [orderStep, setOrderStep] = useState(0);
-    const [orderData, setOrderData] = useState<OrderState>({});
+    const [messages, setMessages] = useState<Message[]>(
+      initialMessages || [
+        {
+          id: "1",
+          role: "bot",
+          content: "Hello! Welcome to SkyScale. How can I assist you today?",
+          type: "options",
+          options: [
+            { label: "Start Custom Order", value: "start_order" },
+            { label: "Ask a Question", value: "ask_question" },
+          ],
+        },
+      ]
+    );
+    const [mode, setMode] = useState<"init" | "order" | "chat">(
+      initialMode || "init"
+    );
+    const [orderStep, setOrderStep] = useState(initialOrderStep || 0);
+    const [orderData, setOrderData] = useState<OrderState>(
+      initialOrderData || {}
+    );
+
+    // Notify parent of state changes
+    useEffect(() => {
+      if (onStateChange) {
+        onStateChange({
+          messages,
+          mode,
+          orderStep,
+          orderData,
+        });
+      }
+    }, [messages, mode, orderStep, orderData, onStateChange]);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
-
-    React.useImperativeHandle(ref, () => ({
-      triggerAction: (action: string) => {
-        handleOptionClick(action);
-      },
-    }));
 
     const scrollToBottom = () => {
       if (chatContainerRef.current) {
@@ -138,7 +177,7 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
 
     const handleOptionClick = async (option: string) => {
       const userMsg: Message = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         role: "user",
         content:
           option === "start_order"
@@ -362,7 +401,7 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
       setMessages((prev) => [
         ...prev,
         {
-          id: Date.now().toString(),
+          id: crypto.randomUUID(),
           role: "bot",
           content: text,
           type,
@@ -379,6 +418,12 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
       return /\S+@\S+\.\S+/.test(email);
     };
 
+    React.useImperativeHandle(ref, () => ({
+      triggerAction: (action: string) => {
+        handleOptionClick(action);
+      },
+    }));
+
     return (
       <>
         <div
@@ -391,7 +436,7 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
         >
           <div
             className={cn(
-              "pointer-events-auto overflow-hidden",
+              "pointer-events-auto",
               inline ? "w-full h-full flex flex-col min-h-0" : ""
             )}
           >
@@ -403,46 +448,46 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
                   animate="visible"
                   exit="exit"
                   className={cn(
-                    "bg-white/80 backdrop-blur-xl border border-white/40 rounded-4xl shadow-2xl flex flex-col overflow-hidden ring-1 ring-black/5",
+                    "flex flex-col overflow-hidden",
                     inline
-                      ? "w-full h-full flex flex-col overflow-hidden shadow-none border-0 rounded-none bg-transparent"
-                      : "mb-4 w-[380px] h-[600px]"
+                      ? "w-full h-full bg-transparent p-0 shadow-none border-none ring-0"
+                      : "mb-6 w-[500px] h-[720px] max-h-[calc(100vh-6rem)] bg-white/60 backdrop-blur-2xl border border-white/20 rounded-[2.5rem] shadow-2xl ring-1 ring-white/40"
                   )}
                 >
                   {/* Header */}
-                  <div className="relative bg-white/50 backdrop-blur-md p-4 flex items-center justify-between shrink-0 border-b border-indigo-50/50">
-                    <div className="absolute inset-0 bg-linear-to-r from-indigo-500/10 to-violet-500/10 opacity-50" />
-                    <div className="relative flex items-center gap-3">
-                      <div className="w-10 h-10 bg-linear-to-br from-indigo-500 to-violet-600 rounded-full flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                        <Sparkles className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-slate-800 font-bold text-sm">
-                          SkyScale Assistant
-                        </h3>
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          <p className="text-slate-500 text-xs font-medium">
-                            Online
+                  {!inline && (
+                    <div className="relative p-5 flex items-center justify-between shrink-0 z-10">
+                      <div className="absolute inset-0 bg-linear-to-b from-white/50 to-transparent pointer-events-none" />
+                      <div className="relative flex items-center gap-4">
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-indigo-500 blur-lg opacity-20" />
+                          <div className="relative w-11 h-11 bg-linear-to-br from-indigo-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/30 text-white">
+                            <Sparkles className="w-5 h-5" />
+                          </div>
+                          <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full" />
+                        </div>
+                        <div className="flex flex-col">
+                          <h3 className="text-slate-800 font-bold text-base tracking-tight">
+                            Concierge
+                          </h3>
+                          <p className="text-indigo-600/80 text-xs font-semibold tracking-wide">
+                            AI Assistance
                           </p>
                         </div>
                       </div>
-                    </div>
-                    {!inline && (
                       <button
                         onClick={() => setIsOpen(false)}
-                        className="relative p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600"
+                        className="relative p-2.5 bg-white/50 hover:bg-white hover:shadow-md text-slate-400 hover:text-slate-600 rounded-full transition-all duration-300"
                       >
                         <X className="w-5 h-5" />
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   {/* Messages Area */}
                   <div
                     ref={chatContainerRef}
-                    className="overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-indigo-100 scrollbar-track-transparent min-h-0"
-                    style={{ height: "calc(100% - 160px)" }}
+                    className="relative flex-1 overflow-y-auto w-full max-w-4xl mx-auto px-4 lg:px-8 py-8 space-y-8 scrollbar-thin scrollbar-thumb-indigo-200/50 scrollbar-track-transparent hover:scrollbar-thumb-indigo-300/80 transition-colors"
                   >
                     {messages.map((msg) => (
                       <motion.div
@@ -451,12 +496,12 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
                         initial="hidden"
                         animate="visible"
                         className={cn(
-                          "flex w-full gap-3",
+                          "flex w-full gap-4",
                           msg.role === "user" ? "justify-end" : "justify-start"
                         )}
                       >
                         {msg.role === "bot" && (
-                          <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-100 to-white border border-indigo-50 flex items-center justify-center shrink-0 mt-1 shadow-sm">
+                          <div className="w-9 h-9 rounded-2xl bg-white/80 border border-white/50 shadow-sm flex items-center justify-center shrink-0 mt-1">
                             <Sparkles className="w-4 h-4 text-indigo-600" />
                           </div>
                         )}
@@ -464,20 +509,20 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
                         <div className="flex flex-col gap-2 max-w-[85%]">
                           <div
                             className={cn(
-                              "p-4 text-sm shadow-sm backdrop-blur-sm",
-                              msg.role === "user"
-                                ? "bg-indigo-600 text-white rounded-2xl rounded-tr-sm shadow-indigo-500/20"
-                                : "bg-white/90 text-slate-700 border border-slate-100 rounded-2xl rounded-tl-sm shadow-slate-200/50"
+                              "group relative px-6 py-3.5 text-sm md:text-base leading-relaxed shadow-sm transition-all duration-300",
+                              msg.role === "bot"
+                                ? "bg-white/80 backdrop-blur-sm text-slate-700 rounded-2xl rounded-tl-sm border border-white/60 hover:shadow-md"
+                                : "bg-linear-to-br from-indigo-600 via-violet-600 to-indigo-700 text-white rounded-3xl rounded-tr-sm shadow-indigo-500/20 shadow-lg hover:shadow-xl hover:shadow-indigo-500/30"
                             )}
                           >
-                            <p className="leading-relaxed whitespace-pre-wrap">
+                            <p className="whitespace-pre-wrap font-medium">
                               {msg.content}
                             </p>
                           </div>
 
-                          {/* Options rendering with staggered animation */}
+                          {/* Options rendering */}
                           {msg.type === "options" && msg.options && (
-                            <div className="flex flex-wrap gap-2 mt-1">
+                            <div className="flex flex-wrap gap-2 mt-2">
                               {msg.options.map((opt, idx) => (
                                 <motion.button
                                   key={opt.value}
@@ -492,10 +537,10 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
                                         : opt.value
                                     )
                                   }
-                                  className="text-xs font-semibold bg-white hover:bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-full transition-all border border-indigo-100 hover:border-indigo-300 hover:shadow-md hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5"
+                                  className="group flex items-center gap-2 text-xs font-semibold bg-white/50 hover:bg-white text-indigo-700 px-4 py-2.5 rounded-xl transition-all border border-white/60 hover:border-indigo-200 shadow-sm hover:shadow-md hover:-translate-y-0.5"
                                 >
                                   {opt.label}
-                                  <ChevronRight className="w-3 h-3 opacity-60" />
+                                  <ChevronRight className="w-3 h-3 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
                                 </motion.button>
                               ))}
                             </div>
@@ -503,8 +548,8 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
                         </div>
 
                         {msg.role === "user" && (
-                          <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center shrink-0 mt-auto opacity-20">
-                            <User className="w-4 h-4 text-white" />
+                          <div className="w-9 h-9 rounded-2xl bg-indigo-100 flex items-center justify-center shrink-0 mt-auto opacity-80">
+                            <User className="w-4 h-4 text-indigo-600" />
                           </div>
                         )}
                       </motion.div>
@@ -515,12 +560,12 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
                         key="typing"
                         initial={{ opacity: 0, scale: 0.9, y: 10 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        className="flex justify-start gap-3"
+                        className="flex justify-start gap-4"
                       >
-                        <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-100 to-white border border-indigo-50 flex items-center justify-center shrink-0 mt-1 shadow-sm">
+                        <div className="w-9 h-9 rounded-2xl bg-white/80 border border-white/50 shadow-sm flex items-center justify-center shrink-0 mt-1">
                           <Sparkles className="w-4 h-4 text-indigo-600" />
                         </div>
-                        <div className="bg-white/80 p-4 rounded-2xl rounded-tl-sm border border-slate-100 shadow-sm flex items-center gap-1.5 h-12 min-w-[3rem] justify-center">
+                        <div className="bg-white/60 backdrop-blur-sm p-4 rounded-2xl rounded-tl-sm border border-white/50 shadow-sm flex items-center gap-1.5 h-12">
                           {[0, 1, 2].map((i) => (
                             <motion.div
                               key={i}
@@ -528,7 +573,7 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
                               initial="initial"
                               animate="animate"
                               transition={{ delay: i * 0.15 }} // Staggered start
-                              className="w-1.5 h-1.5 bg-indigo-400 rounded-full"
+                              className="w-1.5 h-1.5 bg-indigo-500 rounded-full"
                             />
                           ))}
                         </div>
@@ -538,8 +583,8 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
                   </div>
 
                   {/* Input Area */}
-                  <div className="p-4 bg-white/80 backdrop-blur-md border-t border-indigo-50 shrink-0">
-                    <div className="relative flex items-center gap-2">
+                  <div className="w-full shrink-0 pb-8 pt-4 px-4 bg-linear-to-t from-[#FAFAFA] via-[#FAFAFA]/90 to-transparent pointer-events-none sticky bottom-0 z-20">
+                    <div className="pointer-events-auto relative flex items-center gap-3 bg-white/80 backdrop-blur-xl border border-white/60 p-2.5 shadow-xl shadow-indigo-500/10 ring-1 ring-white/60 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all duration-300 max-w-3xl mx-auto rounded-full hover:shadow-2xl hover:shadow-indigo-500/15 hover:bg-white/90">
                       <input
                         ref={inputRef}
                         type="text"
@@ -551,7 +596,7 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
                             ? "Type your answer..."
                             : "Ask anything..."
                         }
-                        className="w-full bg-slate-50 border border-slate-200 rounded-full pl-5 pr-12 py-3.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/30 transition-all shadow-inner text-sm text-slate-700 placeholder:text-slate-400 font-medium"
+                        className="flex-1 bg-transparent border-none pl-5 py-3 focus:outline-none text-base text-slate-800 placeholder:text-slate-400 font-medium"
                         disabled={
                           mode === "order" && [1, 2].includes(orderStep)
                         }
@@ -560,10 +605,10 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
                         onClick={handleSend}
                         disabled={!inputValue.trim()}
                         className={cn(
-                          "absolute right-2 p-2 rounded-full transition-all flex items-center justify-center",
+                          "p-2.5 rounded-2xl transition-all flex items-center justify-center",
                           inputValue.trim()
-                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95"
-                            : "bg-transparent text-slate-300 cursor-not-allowed"
+                            ? "bg-linear-to-br from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/30 hover:shadow-lg hover:scale-105 active:scale-95"
+                            : "bg-slate-100 text-slate-300 cursor-not-allowed"
                         )}
                       >
                         <Send
@@ -572,12 +617,14 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
                         />
                       </button>
                     </div>
-                    <div className="flex justify-center mt-3">
-                      <p className="text-[10px] text-slate-300 flex items-center gap-1 font-medium tracking-wide bg-white/50 px-2 py-0.5 rounded-md">
-                        Powered by{" "}
-                        <span className="text-indigo-400 font-bold">SkyAI</span>
-                      </p>
-                    </div>
+                    {!inline && (
+                      <div className="flex justify-center mt-3">
+                        <p className="text-[10px] text-slate-400/80 font-semibold tracking-wider flex items-center gap-1.5">
+                          Powered by{" "}
+                          <span className="text-indigo-500">SkyAI</span>
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -589,9 +636,9 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
               onClick={() => setIsOpen(!isOpen)}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="group pointer-events-auto relative flex items-center justify-center w-16 h-16 rounded-full bg-linear-to-tr from-indigo-600 to-violet-600 text-white shadow-2xl shadow-indigo-500/40 hover:shadow-indigo-600/50 transition-all z-50"
+              className="group pointer-events-auto relative flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-indigo-600 to-violet-600 text-white shadow-2xl shadow-indigo-500/40 hover:shadow-indigo-600/50 transition-all z-50"
             >
-              <div className="absolute inset-0 rounded-full bg-white/20 animate-ping opacity-0 group-hover:opacity-100 duration-1000" />
+              <div className="absolute inset-0 rounded-2xl bg-white/20 animate-ping opacity-0 group-hover:opacity-100 duration-1000" />
               <AnimatePresence mode="wait">
                 {isOpen ? (
                   <motion.div
@@ -615,9 +662,9 @@ const Chatbot = React.forwardRef<ChatbotHandle, { inline?: boolean }>(
               </AnimatePresence>
 
               {!isOpen && (
-                <span className="absolute top-0 right-0 flex h-4 w-4">
+                <span className="absolute -top-1 -right-1 flex h-4 w-4">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-indigo-600"></span>
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 border-2 border-white"></span>
                 </span>
               )}
             </motion.button>
