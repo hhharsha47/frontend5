@@ -262,7 +262,7 @@ function VideoPlayer() {
                 Craftsmanship
               </h3>
               <p className="text-slate-300 text-sm leading-relaxed max-w-xs font-medium">
-                See how we transform high-fidelity 3D prints into museum-quality
+                See how to transform high-fidelity 3D prints into museum-quality
                 display pieces.
               </p>
             </div>
