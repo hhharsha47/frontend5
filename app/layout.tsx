@@ -3,7 +3,7 @@ import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import Chatbot from "@/components/Chatbot";
+
 import { Toaster } from "sonner";
 
 const inter = Inter({
@@ -39,7 +39,7 @@ export default function RootLayout({
         <CartProvider>
           <UnderConstructionProvider>
             {children}
-            <Chatbot />
+
             <Toaster position="bottom-right" richColors />
           </UnderConstructionProvider>
         </CartProvider>
