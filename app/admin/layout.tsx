@@ -27,7 +27,7 @@ export default function AdminLayout({
     { name: "Analytics", href: "/admin/analytics", icon: TrendingUp },
     { name: "Transactions", href: "/admin/transactions", icon: CreditCard },
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
-    { name: "Custom Designs", href: "/admin/custom-design", icon: PenTool },
+    { name: "Custom Orders", href: "/admin/custom-orders", icon: PenTool }, // Updated link
     { name: "Products", href: "/admin/products", icon: Package },
     { name: "Customers", href: "/admin/customers", icon: Users },
     { name: "Settings", href: "/admin/settings", icon: Settings },

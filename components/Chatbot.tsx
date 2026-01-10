@@ -2,22 +2,38 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { MessageCircle, X, Send, Sparkles, User } from "lucide-react";
+import {
+  MessageCircle,
+  X,
+  Send,
+  Sparkles,
+  User,
+  FileText,
+  CheckCircle2,
+  Upload,
+  Link as LinkIcon,
+  Image as ImageIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Message = {
   id: string;
   role: "bot" | "user";
   content: string;
-  type?: "text" | "options" | "image";
+  type?: "text" | "options" | "image" | "summary"; // Added 'summary' type
   options?: { label: string; value: string }[];
+  summaryData?: OrderState; // Data for the summary card
 };
 
 type OrderState = {
+  id?: string;
   type?: string;
   scale?: string;
   description?: string;
   email?: string;
+  references?: string[];
+  submittedAt?: string;
+  status?: string;
 };
 
 // --- Animations ---
@@ -71,6 +87,40 @@ const typingDotVariants = {
       ease: "easeInOut",
     },
   },
+};
+
+// --- Dynamic Scale Options ---
+const getScalesForCategory = (category: string) => {
+  switch (category) {
+    case "aircraft":
+      return [
+        { label: "1/32 (Large)", value: "1/32" },
+        { label: "1/48 (Medium - Most Popular)", value: "1/48" },
+        { label: "1/72 (Small)", value: "1/72" },
+        { label: "Other / Custom", value: "custom" },
+      ];
+    case "armor":
+      return [
+        { label: "1/16 (Large)", value: "1/16" },
+        { label: "1/35 (Standard)", value: "1/35" },
+        { label: "1/72 (Wargaming)", value: "1/72" },
+        { label: "Other / Custom", value: "custom" },
+      ];
+    case "ship":
+      return [
+        { label: "1/200 (Huge)", value: "1/200" },
+        { label: "1/350 (Standard)", value: "1/350" },
+        { label: "1/700 (Small)", value: "1/700" },
+        { label: "Other / Custom", value: "custom" },
+      ];
+    default:
+      return [
+        { label: "Small (approx 10cm)", value: "small" },
+        { label: "Medium (approx 20cm)", value: "medium" },
+        { label: "Large (approx 30cm+)", value: "large" },
+        { label: "Other / Custom", value: "custom" },
+      ];
+  }
 };
 
 export type ChatbotHandle = {
@@ -155,17 +205,14 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
     };
 
     useEffect(() => {
-      // Only auto-scroll if we are NOT inline (popover mode) OR if it's a new message
-      // preventing aggressive scroll on mount for inline mode unless necessary
       if (!inline || messages.length > 1) {
         scrollToBottom();
       }
     }, [messages, isTyping, isOpen, inline]);
 
-    // Audio effect helper (optional, placeholder)
+    // Audio effect helper
     const playSound = (type: "send" | "receive") => {
-      // const audio = new Audio(type === 'send' ? '/sounds/pop-up-on.mp3' : '/sounds/pop-up-off.mp3');
-      // audio.play().catch(() => {}); // Ignore errors if file not found
+      // Placeholder for sound effect logic
     };
 
     const handleOptionClick = async (option: string) => {
@@ -181,6 +228,8 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
             ? "Check Order Status"
             : option === "shipping_policy"
             ? "Shipping Policy"
+            : option === "skip_image"
+            ? "Skip this step"
             : option,
       };
       setMessages((prev) => [...prev, userMsg]);
@@ -191,7 +240,7 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
         setIsTyping(false);
         processResponse(option);
         playSound("receive");
-      }, 1000); // Slightly longer delay for "realism"
+      }, 800);
     };
 
     const handleSend = () => {
@@ -204,14 +253,14 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
       };
       setMessages((prev) => [...prev, userMsg]);
       setInputValue("");
-      playSound("send"); // Fixed lint
+      playSound("send");
       setIsTyping(true);
 
       setTimeout(() => {
         setIsTyping(false);
         processResponse(inputValue, true);
-        playSound("receive"); // Fixed lint
-      }, 1200);
+        playSound("receive");
+      }, 1000);
     };
 
     const processResponse = (input: string, isFreeText: boolean = false) => {
@@ -256,56 +305,133 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
       // 2. ORDER MODE
       if (mode === "order") {
         if (orderStep === 1) {
-          // Type
-          setOrderData((prev) => ({ ...prev, type: input }));
+          // Type Selection -> Ask for Scale
+          const category = isFreeText ? "other" : input;
+          const label = !isFreeText
+            ? {
+                aircraft: "Aircraft",
+                armor: "Armor",
+                ship: "Ship",
+                scifi: "Sci-Fi",
+              }[input] || input
+            : input;
+
+          setOrderData((prev) => ({ ...prev, type: label }));
           setOrderStep(2);
-          addBotMessage("Got it. What scale would you prefer?", "options", [
-            { label: "1/32", value: "1/32" },
-            { label: "1/48", value: "1/48" },
-            { label: "1/72", value: "1/72" },
-            { label: "Custom/Other", value: "custom" },
-          ]);
+
+          addBotMessage(
+            `Got it, a ${label} model. What scale would you prefer?`,
+            "options",
+            getScalesForCategory(input)
+          );
         } else if (orderStep === 2) {
-          // Scale
+          // Scale Selection -> Ask for Description
           setOrderData((prev) => ({ ...prev, scale: input }));
           setOrderStep(3);
           addBotMessage(
-            'Understood. Please describe the specific model, variant, or any special details (e.g., "F-14A Tomcat Jolly Rogers").'
+            'Understood. Please describe the specific model, variant, or any special details (e.g., "F-14A Tomcat Jolly Rogers, clean finish").'
           );
         } else if (orderStep === 3) {
-          // Description
+          // Description -> Ask for References (OPTIONAL)
           setOrderData((prev) => ({ ...prev, description: input }));
           setOrderStep(4);
           addBotMessage(
-            "Almost done! Please provide your email address so we can send you a quote."
+            "Do you have any reference images or links you'd like to share? This is optional but helps us understand your needs.",
+            "options",
+            [{ label: "Skip", value: "skip_image" }]
           );
         } else if (orderStep === 4) {
-          // Email
+          // Reference -> Ask for Email
+          if (input !== "skip_image") {
+            setOrderData((prev) => ({ ...prev, references: [input] }));
+          }
+
+          setOrderStep(5);
+          addBotMessage(
+            "Almost done! Please provide your email address so we can send you a quote."
+          );
+        } else if (orderStep === 5) {
+          // Email -> Validation -> Summary -> Persistence -> Final Success
           if (!validateEmail(input)) {
             addBotMessage(
               "That doesn't look like a valid email. Please try again."
             );
             return;
           }
-          setOrderData((prev) => ({ ...prev, email: input }));
-          setOrderStep(5);
+
+          const newOrderId = `CO-${new Date().getFullYear()}-${Math.floor(
+            100 + Math.random() * 900
+          )}`;
+          const finalOrderData = {
+            ...orderData,
+            email: input,
+            id: newOrderId,
+            submittedAt: new Date().toLocaleDateString(),
+            status: "enquiry_received",
+          };
+          setOrderData(finalOrderData);
+          setOrderStep(6);
+
+          // Show Summary Card
           addBotMessage(
-            "Thank you! Your custom order request has been received. Our team will review the details and contact you shortly with a quote."
+            "Perfect. Here is a summary of your request:",
+            "summary",
+            undefined,
+            finalOrderData
           );
 
+          // Simulated API "Success" & Persistence
           setTimeout(() => {
-            setMode("init");
-            setOrderStep(0);
-            setOrderData({});
+            // --- PERSISTENCE LOGIC START ---
+            try {
+              const existing = localStorage.getItem("mock_custom_orders");
+              const orders = existing ? JSON.parse(existing) : [];
+              orders.unshift({
+                ...finalOrderData,
+                modelName:
+                  finalOrderData.description?.substring(0, 30) +
+                    (finalOrderData.description &&
+                    finalOrderData.description.length > 30
+                      ? "..."
+                      : "") || finalOrderData.type,
+                customer: {
+                  name: "Guest User", // Mock name
+                  email: finalOrderData.email,
+                  avatar: "GU",
+                },
+                budget: "Pending Quote",
+                date: finalOrderData.submittedAt,
+                aiConversation: messages, // Persist full chat history
+              });
+              localStorage.setItem(
+                "mock_custom_orders",
+                JSON.stringify(orders)
+              );
+              window.dispatchEvent(new Event("storage"));
+            } catch (e) {
+              console.error("Failed to save to localStorage", e);
+            }
+            // --- PERSISTENCE LOGIC END ---
+
             addBotMessage(
-              "Is there anything else I can help you with?",
-              "options",
-              [
-                { label: "Start Another Order", value: "start_order" },
-                { label: "Ask a Question", value: "ask_question" },
-              ]
+              "Your custom order request has been successfully submitted! Our team will review the details and email you a quote shortly."
             );
-          }, 3000);
+
+            // Reset after success
+            setTimeout(() => {
+              setMode("init");
+              setOrderStep(0);
+              setOrderData({});
+              addBotMessage(
+                "Is there anything else I can help you with?",
+                "options",
+                [
+                  { label: "Start Another Order", value: "start_order" },
+                  { label: "Ask a Question", value: "ask_question" },
+                ]
+              );
+            }, 6000);
+          }, 1500);
         }
         return;
       }
@@ -354,7 +480,7 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
           checkKeywords(lowerInput, ["track", "order status", "where is my"])
         ) {
           addBotMessage(
-            'You can track your order in the "Orders" section of your profile. Alternatively, provide your order ID here and I can check (feature coming soon!).'
+            'You can track your order in the "Orders" section of your profile.'
           );
         } else if (
           checkKeywords(lowerInput, ["hello", "hi", "hey", "greetings"])
@@ -388,8 +514,9 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
 
     const addBotMessage = (
       text: string,
-      type: "text" | "options" = "text",
-      options?: { label: string; value: string }[]
+      type: "text" | "options" | "summary" = "text",
+      options?: { label: string; value: string }[],
+      summaryData?: OrderState
     ) => {
       setMessages((prev) => [
         ...prev,
@@ -399,6 +526,7 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
           content: text,
           type,
           options,
+          summaryData,
         },
       ]);
     };
@@ -444,7 +572,7 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
                     "flex flex-col overflow-hidden",
                     inline
                       ? "w-full h-full bg-transparent p-0 shadow-none border-none ring-0"
-                      : "mb-6 w-[500px] h-[720px] max-h-[calc(100vh-6rem)] bg-white/60 backdrop-blur-2xl border border-white/20 rounded-[2.5rem] shadow-2xl ring-1 ring-white/40"
+                      : "mb-6 w-[400px] h-[600px] max-h-[calc(100vh-6rem)] bg-white/60 backdrop-blur-2xl border border-white/20 rounded-[2.5rem] shadow-2xl ring-1 ring-white/40"
                   )}
                 >
                   {/* Header */}
@@ -480,7 +608,7 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
                   {/* Messages Area */}
                   <div
                     ref={chatContainerRef}
-                    className="relative flex-1 overflow-y-auto w-full max-w-4xl mx-auto px-4 lg:px-8 py-8 space-y-8 no-scrollbar"
+                    className="relative flex-1 overflow-y-auto w-full max-w-4xl mx-auto px-4 lg:px-6 py-6 space-y-6 no-scrollbar"
                   >
                     <style jsx global>{`
                       .no-scrollbar::-webkit-scrollbar {
@@ -511,20 +639,89 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
                         <div className="flex flex-col gap-2 max-w-[85%]">
                           <div
                             className={cn(
-                              "group relative px-5 py-3 text-[15px] leading-7 shadow-sm transition-all duration-300",
+                              "group relative px-5 py-3 text-[14px] leading-6 shadow-sm transition-all duration-300",
                               msg.role === "bot"
                                 ? "bg-white text-slate-700 rounded-2xl rounded-tl-sm border border-slate-100"
-                                : "bg-[#4F46E5] text-white rounded-2xl rounded-tr-sm shadow-indigo-500/20 shadow-md"
+                                : "bg-[#4F46E5] text-white rounded-2xl rounded-tr-sm shadow-indigo-500/20 shadow-md",
+                              // Add overflow hidden to prevent massive text spill
+                              "overflow-hidden max-w-full"
                             )}
                           >
-                            <p className="whitespace-pre-wrap font-medium">
-                              {msg.content}
-                            </p>
+                            {msg.content &&
+                            (msg.content.startsWith("data:image") ||
+                              msg.content.match(/^https?:\/\//i)) ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={msg.content}
+                                alt="Content"
+                                className="max-w-full rounded-lg mix-blend-normal"
+                              />
+                            ) : (
+                              <p className="whitespace-pre-wrap font-medium wrap-break-word">
+                                {msg.content}
+                              </p>
+                            )}
                           </div>
+
+                          {/* Summary Card Rendering */}
+                          {msg.type === "summary" && msg.summaryData && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="bg-white rounded-2xl p-4 border border-indigo-100 shadow-lg shadow-indigo-500/5 mb-2"
+                            >
+                              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
+                                <FileText className="w-4 h-4 text-indigo-500" />
+                                <h4 className="font-bold text-slate-800 text-sm">
+                                  Order Summary
+                                </h4>
+                              </div>
+                              <div className="space-y-2 text-xs">
+                                <div className="flex justify-between items-start">
+                                  <span className="text-slate-500 font-medium">
+                                    Type:
+                                  </span>
+                                  <span className="text-slate-800 font-semibold text-right">
+                                    {msg.summaryData.type}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-start">
+                                  <span className="text-slate-500 font-medium">
+                                    Scale:
+                                  </span>
+                                  <span className="text-slate-800 font-semibold text-right">
+                                    {msg.summaryData.scale}
+                                  </span>
+                                </div>
+                                <div className="flex flex-col gap-1 mt-1">
+                                  <span className="text-slate-500 font-medium">
+                                    Details:
+                                  </span>
+                                  <p className="text-slate-700 bg-slate-50 p-2 rounded-lg leading-relaxed">
+                                    {msg.summaryData.description}
+                                  </p>
+                                </div>
+                                <div className="flex justify-between items-start pt-2 mt-2 border-t border-slate-100">
+                                  <span className="text-slate-500 font-medium">
+                                    Contact:
+                                  </span>
+                                  <span className="text-indigo-600 font-semibold text-right">
+                                    {msg.summaryData.email}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="mt-4 flex items-center justify-center gap-2 text-emerald-600 bg-emerald-50 py-2 rounded-lg">
+                                <CheckCircle2 className="w-4 h-4" />
+                                <span className="text-xs font-bold uppercase tracking-wide">
+                                  Ready to Submit
+                                </span>
+                              </div>
+                            </motion.div>
+                          )}
 
                           {/* Options rendering */}
                           {msg.type === "options" && msg.options && (
-                            <div className="flex flex-wrap gap-2 mt-3">
+                            <div className="flex flex-wrap gap-2 mt-2">
                               {msg.options.map((opt, idx) => (
                                 <motion.button
                                   key={opt.value}
@@ -539,7 +736,7 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
                                         : opt.value
                                     )
                                   }
-                                  className="px-5 py-2.5 bg-white border border-indigo-100 hover:border-indigo-300 text-indigo-700 text-[13px] font-medium rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                                  className="px-4 py-2 bg-white border border-indigo-100 hover:border-indigo-300 text-indigo-700 text-[12px] font-semibold rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
                                 >
                                   {opt.label}
                                 </motion.button>
@@ -556,7 +753,7 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
                       </motion.div>
                     ))}
 
-                    {isTyping && (
+                    {isTyping && ( // Typing indicator logic remains the same
                       <motion.div
                         key="typing"
                         initial={{ opacity: 0, scale: 0.9, y: 10 }}
@@ -584,8 +781,8 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
                   </div>
 
                   {/* Input Area */}
-                  <div className="w-full shrink-0 pb-8 pt-4 px-4 bg-linear-to-t from-[#FAFAFA] via-[#FAFAFA]/90 to-transparent pointer-events-none sticky bottom-0 z-20">
-                    <div className="pointer-events-auto relative flex items-center gap-3 bg-white/80 backdrop-blur-xl border border-white/60 p-2.5 shadow-xl shadow-indigo-500/10 ring-1 ring-white/60 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all duration-300 max-w-3xl mx-auto rounded-full hover:shadow-2xl hover:shadow-indigo-500/15 hover:bg-white/90">
+                  <div className="w-full shrink-0 pb-6 pt-4 px-4 bg-linear-to-t from-[#FAFAFA] via-[#FAFAFA]/90 to-transparent pointer-events-none sticky bottom-0 z-20">
+                    <div className="pointer-events-auto relative flex items-center gap-3 bg-white/80 backdrop-blur-xl border border-white/60 p-2 shadow-xl shadow-indigo-500/10 ring-1 ring-white/60 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all duration-300 max-w-3xl mx-auto rounded-full hover:shadow-2xl hover:shadow-indigo-500/15 hover:bg-white/90">
                       <input
                         ref={inputRef}
                         type="text"
@@ -597,16 +794,53 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
                             ? "Type your answer..."
                             : "Ask anything..."
                         }
-                        className="flex-1 bg-transparent border-none pl-5 py-3 focus:outline-none text-base text-slate-800 placeholder:text-slate-400 font-medium"
+                        className="flex-1 bg-transparent border-none pl-4 py-2.5 focus:outline-none text-[14px] text-slate-800 placeholder:text-slate-400 font-medium"
                         disabled={
-                          mode === "order" && [1, 2].includes(orderStep)
+                          mode === "order" &&
+                          [1, 2].includes(orderStep) &&
+                          !inputValue &&
+                          false // Let's simplify: never disable via step logic, handle via specific checks if needed. Or just allow text input for fallback. For now, removing the restriction to avoid locking user out.
                         }
                       />
+                      {mode === "order" && orderStep === 4 && (
+                        <>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            id="chat-file-input"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  if (ev.target?.result) {
+                                    setInputValue(ev.target.result as string);
+                                  }
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                          <button
+                            onClick={() =>
+                              document
+                                .getElementById("chat-file-input")
+                                ?.click()
+                            }
+                            className="p-2 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+                            title="Upload Image"
+                          >
+                            <Upload className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+
                       <button
                         onClick={handleSend}
                         disabled={!inputValue.trim()}
                         className={cn(
-                          "p-2.5 rounded-2xl transition-all flex items-center justify-center",
+                          "p-2 rounded-xl transition-all flex items-center justify-center",
                           inputValue.trim()
                             ? "bg-linear-to-br from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/30 hover:shadow-lg hover:scale-105 active:scale-95"
                             : "bg-slate-100 text-slate-300 cursor-not-allowed"
@@ -637,7 +871,7 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
               onClick={() => setIsOpen(!isOpen)}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="group pointer-events-auto relative flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-indigo-600 to-violet-600 text-white shadow-2xl shadow-indigo-500/40 hover:shadow-indigo-600/50 transition-all z-50"
+              className="group pointer-events-auto relative flex items-center justify-center w-14 h-14 rounded-2xl bg-linear-to-br from-indigo-600 to-violet-600 text-white shadow-2xl shadow-indigo-500/40 hover:shadow-indigo-600/50 transition-all z-50"
             >
               <div className="absolute inset-0 rounded-2xl bg-white/20 animate-ping opacity-0 group-hover:opacity-100 duration-1000" />
               <AnimatePresence mode="wait">
@@ -648,7 +882,7 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
                     animate={{ rotate: 0, opacity: 1 }}
                     exit={{ rotate: 90, opacity: 0 }}
                   >
-                    <X className="w-7 h-7" />
+                    <X className="w-6 h-6" />
                   </motion.div>
                 ) : (
                   <motion.div
@@ -657,13 +891,13 @@ const Chatbot = React.forwardRef<ChatbotHandle, ChatbotProps>(
                     animate={{ rotate: 0, opacity: 1 }}
                     exit={{ rotate: -90, opacity: 0 }}
                   >
-                    <MessageCircle className="w-7 h-7" />
+                    <MessageCircle className="w-6 h-6" />
                   </motion.div>
                 )}
               </AnimatePresence>
 
               {!isOpen && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 border-2 border-white"></span>
                 </span>

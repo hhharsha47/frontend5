@@ -75,6 +75,7 @@ interface CustomRequest {
     tax: number;
     total: number;
   };
+  aiConversation?: Array<{ role: string; content: string; timestamp?: string }>;
 }
 
 function ProfileContent() {
@@ -96,7 +97,53 @@ function ProfileContent() {
     null
   );
 
-  // Settings State
+  const [replyInput, setReplyInput] = useState("");
+
+  const handleSendReply = () => {
+    if (!selectedRequest || !replyInput.trim()) return;
+
+    try {
+      const stored = localStorage.getItem("mock_custom_orders");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const updated = parsed.map((o: any) => {
+          if (o.id === selectedRequest.id) {
+            const newMsg = {
+              role: "user",
+              content: replyInput,
+              id: crypto.randomUUID(),
+              timestamp: new Date().toISOString(),
+            };
+            return {
+              ...o,
+              aiConversation: [...(o.aiConversation || []), newMsg],
+            };
+          }
+          return o;
+        });
+
+        localStorage.setItem("mock_custom_orders", JSON.stringify(updated));
+        window.dispatchEvent(new Event("storage"));
+
+        // Update local state immediately for UI responsiveness
+        const newConversation = [
+          ...(selectedRequest.aiConversation || []),
+          {
+            role: "user" as const,
+            content: replyInput,
+          },
+        ];
+        setSelectedRequest({
+          ...selectedRequest,
+          aiConversation: newConversation,
+        });
+        setReplyInput("");
+      }
+    } catch (e) {
+      console.error("Failed to send reply", e);
+    }
+  };
+
   const [profileForm, setProfileForm] = useState({
     name: "Alex Pilot",
     email: "alex.pilot@skyscale.com",
@@ -209,86 +256,88 @@ function ProfileContent() {
     },
   ];
 
-  const customRequests: CustomRequest[] = [
-    {
-      id: "REQ-2024-001",
-      submittedDate: "Mar 18, 2024",
-      title: "1/32 F-14 Tomcat Jolly Rogers",
-      description:
-        "Custom weathering and specific tail markings requested for VF-84.",
-      estCost: 450.0,
-      status: "In Progress",
-      progress: 60,
-      image: "/images/products/f14_tomcat_model.png",
-      steps: [
-        { label: "Request Submitted", date: "Mar 18", completed: true },
-        { label: "Quote Approved", date: "Mar 19", completed: true },
-        { label: "Materials Sourced", date: "Mar 20", completed: true },
-        { label: "Assembly", date: "In Progress", completed: false },
-        { label: "Painting & Weathering", date: "Pending", completed: false },
-        { label: "Final QC", date: "Pending", completed: false },
-      ],
-      pricing: {
-        base: 300.0,
-        labor: 120.0,
-        materials: 30.0,
-        shipping: 0.0,
-        tax: 0.0,
-        total: 450.0,
-      },
-    },
-    {
-      id: "REQ-2024-002",
-      submittedDate: "Mar 20, 2024",
-      title: "Gundam RX-78-2 Custom Paint",
-      description: "Metallic finish with battle damage effects.",
-      estCost: 280.0,
-      status: "Quote Ready",
-      progress: 30,
-      image: "/latest-mech.png",
-      steps: [
-        { label: "Request Submitted", date: "Mar 20", completed: true },
-        { label: "Quote Preparation", date: "Mar 21", completed: true },
-        { label: "Quote Review", date: "Pending", completed: false },
-        { label: "Processing", date: "Pending", completed: false },
-      ],
-      pricing: {
-        base: 150.0,
-        labor: 100.0,
-        materials: 15.0,
-        shipping: 15.0,
-        tax: 0.0, // Calculated later if needed, but simple for now
-        total: 280.0,
-      },
-    },
-    {
-      id: "REQ-2024-003",
-      submittedDate: "Mar 22, 2024",
-      title: "1/48 Spitfire Mk.IX",
-      description: "Historical accuracy focus, specific pilot markings.",
-      estCost: 320.0,
-      status: "Pending Approval",
-      progress: 10,
-      image: "/bestseller-spitfire.png",
-      steps: [
-        { label: "Request Submitted", date: "Mar 22", completed: true },
-        {
-          label: "Reviewing Requirements",
-          date: "In Progress",
-          completed: true,
-        },
-        { label: "Quote Generation", date: "Pending", completed: false },
-      ],
-      pricing: {
-        base: 200.0,
-        labor: 100.0,
-        materials: 20.0,
-        shipping: 0.0,
-        tax: 0.0,
-        total: 320.0,
-      },
-    },
-  ];
+  const [customRequests, setCustomRequests] = useState<CustomRequest[]>([]);
+
+  useEffect(() => {
+    const loadCustomOrders = () => {
+      try {
+        // Load from localStorage same as Admin
+        const stored = localStorage.getItem("mock_custom_orders");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          // Map to CustomRequest shape
+          const mapped = parsed.map((o: any) => {
+            // Handle both flat (Chatbot) and nested (Admin Mocks) structures
+            const reqs = o.requirements || o;
+            const refs = o.references || reqs.references || [];
+
+            // Ensure we extract the correct image
+            let displayImage = "/images/products/f14_tomcat_model.png";
+            if (refs && refs.length > 0 && typeof refs[0] === "string") {
+              displayImage = refs[0];
+            }
+
+            return {
+              id: o.id,
+              submittedDate: o.submittedAt || reqs.submittedAt || "N/A",
+              title: reqs.type
+                ? `${reqs.scale || ""} ${reqs.type}`
+                : "Custom Request",
+              description: reqs.description || "No description provided.",
+              estCost:
+                parseInt((reqs.budgetRange || "0").replace(/[^0-9]/g, "")) || 0,
+              status:
+                o.status === "cancelled"
+                  ? "Cancelled"
+                  : o.status === "quote_ready"
+                  ? "Quote Ready"
+                  : "In Progress",
+              progress: o.status === "quote_ready" ? 50 : 20,
+              image: displayImage,
+              steps: [
+                {
+                  label: "Request Submitted",
+                  date: o.submittedAt || reqs.submittedAt || "Pending",
+                  completed: true,
+                },
+                {
+                  label: "Review",
+                  date: "In Progress",
+                  completed: o.status !== "enquiry_received",
+                },
+              ],
+              aiConversation: o.aiConversation || [],
+            };
+          });
+          setCustomRequests(mapped);
+        } else {
+          // Fallback Mock Data if empty
+          setCustomRequests([
+            {
+              id: "REQ-MOCK-1",
+              submittedDate: "Jan 15, 2024",
+              title: "1/48 F-14 Tomcat (Sample)",
+              description: "Sample request for visualization.",
+              estCost: 450,
+              status: "In Progress",
+              progress: 45,
+              image: "/images/products/f14_tomcat_model.png",
+              steps: [],
+              aiConversation: [],
+            },
+          ]);
+        }
+      } catch (e) {
+        console.error("Failed to load custom orders", e);
+      }
+    };
+
+    loadCustomOrders();
+
+    // Listen for updates from Admin page
+    window.addEventListener("storage", loadCustomOrders);
+    return () => window.removeEventListener("storage", loadCustomOrders);
+  }, []);
 
   const wishlist = [
     {
@@ -1338,8 +1387,8 @@ function ProfileContent() {
       {/* Custom Request Modal */}
       {selectedRequest && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
               <div>
                 <h3 className="font-bold text-lg text-slate-900">
                   Request Details
@@ -1355,57 +1404,147 @@ function ProfileContent() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-8">
-              <div className="flex items-start gap-4 mb-8">
-                <div className="w-20 h-20 bg-slate-100 rounded-lg overflow-hidden shrink-0 border border-slate-100">
-                  <img
-                    src={selectedRequest.image}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
+
+            <div className="flex-1 overflow-y-auto p-0">
+              {/* Modal Content */}
+              <div className="p-8 space-y-8">
+                {/* Info Section */}
+                <div className="flex items-start gap-4">
+                  <div className="w-24 h-24 bg-slate-100 rounded-xl overflow-hidden shrink-0 border border-slate-100">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={selectedRequest.image}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-lg">
+                      {selectedRequest.title}
+                    </h4>
+                    <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                      {selectedRequest.description}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-base">
-                    {selectedRequest.title}
-                  </h4>
-                  <p className="text-sm text-slate-500 mt-1">
-                    {selectedRequest.description}
-                  </p>
-                </div>
-              </div>
-              {selectedRequest.steps && (
-                <div className="relative pl-8 space-y-8 before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
-                  {selectedRequest.steps.map((step, i) => (
-                    <div key={i} className="relative">
-                      <div
-                        className={cn(
-                          "absolute -left-[31px] w-6 h-6 rounded-full border-4 border-white flex items-center justify-center shadow-sm",
-                          step.completed
-                            ? "bg-indigo-600 ring-2 ring-indigo-100"
-                            : "bg-slate-200"
-                        )}
-                      >
-                        {step.completed && (
-                          <Check className="w-3 h-3 text-white" />
-                        )}
+
+                {/* Conversation Section */}
+                {selectedRequest.aiConversation &&
+                  selectedRequest.aiConversation.length > 0 && (
+                    <div className="border-t border-slate-100 pt-8">
+                      <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                        Messages & Updates
+                      </h4>
+                      <div className="bg-slate-50 rounded-2xl p-4 space-y-4 max-h-[300px] overflow-y-auto border border-slate-100 custom-scrollbar">
+                        {selectedRequest.aiConversation
+                          .filter((msg) => msg.role !== "bot") // User requested to filter out bot messages
+                          .map((msg, idx) => (
+                            <div
+                              key={idx}
+                              className={`flex gap-3 ${
+                                msg.role === "user" ? "flex-row-reverse" : ""
+                              }`}
+                            >
+                              <div
+                                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
+                                  msg.role === "admin"
+                                    ? "bg-indigo-600 text-white"
+                                    : "bg-slate-200 text-slate-600"
+                                }`}
+                              >
+                                {msg.role === "admin" ? "A" : "U"}
+                              </div>
+                              <div
+                                className={`px-4 py-2 rounded-xl text-sm max-w-[80%] overflow-hidden ${
+                                  msg.role === "admin"
+                                    ? "bg-indigo-50 text-indigo-900 border border-indigo-100"
+                                    : "bg-slate-800 text-white"
+                                }`}
+                              >
+                                {msg.content &&
+                                (msg.content.startsWith("data:image") ||
+                                  msg.content.match(/^https?:\/\//i)) ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={msg.content}
+                                    alt="Content"
+                                    className="max-w-full rounded-lg mix-blend-normal"
+                                  />
+                                ) : (
+                                  <p className="whitespace-pre-wrap font-medium break-words">
+                                    {msg.content}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
                       </div>
-                      <div>
-                        <p
-                          className={cn(
-                            "text-sm font-bold",
-                            step.completed ? "text-slate-900" : "text-slate-400"
-                          )}
+
+                      {/* Reply Input Area */}
+                      <div className="mt-4 flex gap-2">
+                        <input
+                          type="text"
+                          value={replyInput}
+                          onChange={(e) => setReplyInput(e.target.value)}
+                          onKeyDown={(e) =>
+                            e.key === "Enter" && handleSendReply()
+                          }
+                          placeholder="Type a message to support..."
+                          className="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm"
+                        />
+                        <button
+                          onClick={handleSendReply}
+                          disabled={!replyInput.trim()}
+                          className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
-                          {step.label}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          {step.date}
-                        </p>
+                          Send
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  )}
+
+                {selectedRequest.steps && selectedRequest.steps.length > 0 && (
+                  <div className="border-t border-slate-100 pt-8">
+                    <h4 className="text-sm font-bold text-slate-900 mb-6">
+                      Tracking Status
+                    </h4>
+                    <div className="relative pl-8 space-y-8 before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+                      {selectedRequest.steps.map((step, i) => (
+                        <div key={i} className="relative">
+                          <div
+                            className={cn(
+                              "absolute -left-[31px] w-6 h-6 rounded-full border-4 border-white flex items-center justify-center shadow-sm",
+                              step.completed
+                                ? "bg-indigo-600 ring-2 ring-indigo-100"
+                                : "bg-slate-200"
+                            )}
+                          >
+                            {step.completed && (
+                              <Check className="w-3 h-3 text-white" />
+                            )}
+                          </div>
+                          <div>
+                            <p
+                              className={cn(
+                                "text-sm font-bold",
+                                step.completed
+                                  ? "text-slate-900"
+                                  : "text-slate-400"
+                              )}
+                            >
+                              {step.label}
+                            </p>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {step.date}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
