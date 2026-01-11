@@ -14,9 +14,15 @@ import {
   User,
   Sparkles,
   X,
+  List,
+  FileText,
+  Image as ImageIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import QuestionnaireBuilder from "@/components/admin/QuestionnaireBuilder";
+import { toast } from "sonner";
+import { getOrderQuestionnaires } from "@/app/actions/custom-order";
 
 // Mock Data (in a real app, this would be fetched based on ID)
 const MOCK_ORDER_DETAILS = {
@@ -53,16 +59,25 @@ const STEPS = [
     completed: true,
     date: "Jan 15",
   },
-  { id: "quote_ready", label: "Quote Ready", completed: true, date: "Today" },
+  {
+    id: "pending_admin_review",
+    label: "Admin Review",
+    completed: false,
+  },
+  { id: "quote_ready", label: "Quote Ready", completed: false },
   { id: "quote_accepted", label: "Quote Accepted", completed: false },
   { id: "in_production", label: "Production", completed: false },
   { id: "shipped", label: "Shipped", completed: false },
 ];
 
 export default function OrderDetailPage() {
-  const params = useParams(); // params.id will be available
+  const params = useParams();
   const [activeTab, setActiveTab] = useState<"details" | "chat">("details");
   const [order, setOrder] = useState(MOCK_ORDER_DETAILS);
+  const [showQuestionnaireBuilder, setShowQuestionnaireBuilder] =
+    useState(false);
+  const [questionnaires, setQuestionnaires] = useState<any[]>([]);
+  const [loadingQuestionnaires, setLoadingQuestionnaires] = useState(false);
 
   React.useEffect(() => {
     const findOrder = () => {
@@ -70,7 +85,9 @@ export default function OrderDetailPage() {
         const stored = localStorage.getItem("mock_custom_orders");
         if (stored) {
           const parsed = JSON.parse(stored);
-          const found = parsed.find((o: any) => o.id === params.id);
+          const found = parsed.find(
+            (o: any) => o.id === params.id || o.orderReference === params.id
+          );
 
           if (found) {
             const detailShape = {
@@ -83,12 +100,13 @@ export default function OrderDetailPage() {
                 history: "New Customer",
               },
               requirements: {
-                type: found.type || found.modelName,
-                scale: found.scale,
-                description: found.description,
+                type: found.type || found.modelName || "Armor",
+                scale: found.scale || "1/72",
+                description:
+                  found.description || found.requirements?.description,
                 submittedAt: found.submittedAt || "Just now",
                 budgetRange: found.budget || "Pending Quote",
-                references: found.references || [], // Map references
+                references: found.references || [],
               },
               aiConversation: found.aiConversation || [
                 {
@@ -96,12 +114,11 @@ export default function OrderDetailPage() {
                   content:
                     "Hello! Welcome to SkyScale. [Transcript Placeholder]",
                 },
-                { role: "user", content: found.description },
               ],
             };
-            setOrder(detailShape as any);
+            // @ts-ignore
+            setOrder(detailShape);
           } else {
-            // Fallback to mock data if ID matches mock ID, otherwise keep default or show error
             if (params.id === "CO-2024-001") {
               setOrder(MOCK_ORDER_DETAILS);
             }
@@ -112,7 +129,30 @@ export default function OrderDetailPage() {
       }
     };
     findOrder();
+    findOrder();
   }, [params.id]);
+
+  // Fetch Sent Questionnaire if applicable
+  React.useEffect(() => {
+    const fetchQ = async () => {
+      if (
+        order.status === "questionnaire_sent" ||
+        order.status === "questionnaire_completed"
+      ) {
+        setLoadingQuestionnaires(true);
+        try {
+          const qs = await getOrderQuestionnaires(order.id);
+          console.log("Fetched Qs:", qs);
+          setQuestionnaires(qs || []);
+        } catch (error) {
+          console.error("Failed to fetch questionnaires", error);
+        } finally {
+          setLoadingQuestionnaires(false);
+        }
+      }
+    };
+    fetchQ();
+  }, [order.id, order.status]);
 
   /* State for Contact Modal */
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
@@ -128,9 +168,14 @@ export default function OrderDetailPage() {
       const stored = localStorage.getItem("mock_custom_orders");
       if (stored) {
         const parsed = JSON.parse(stored);
-        const idx = parsed.findIndex((o: any) => o.id === order.id);
+        const idx = parsed.findIndex(
+          (o: any) => o.id === order.id || o.orderReference === order.id
+        );
         if (idx !== -1) {
           parsed[idx].status = newStatus;
+          if (newStatus === "questionnaire_sent") {
+            parsed[idx].questionnaireSent = true;
+          }
           localStorage.setItem("mock_custom_orders", JSON.stringify(parsed));
           window.dispatchEvent(new Event("storage"));
         }
@@ -150,10 +195,9 @@ export default function OrderDetailPage() {
     if (!queryMessage.trim()) return;
     setIsSubmittingQuery(true);
 
-    // Simulate network delay
     setTimeout(() => {
       const newMessage = {
-        role: "admin", // New role for explicit Admin queries
+        role: "admin",
         content: queryMessage,
         timestamp: new Date().toISOString(),
       };
@@ -171,10 +215,11 @@ export default function OrderDetailPage() {
         const stored = localStorage.getItem("mock_custom_orders");
         if (stored) {
           const parsed = JSON.parse(stored);
-          const idx = parsed.findIndex((o: any) => o.id === order.id);
+          const idx = parsed.findIndex(
+            (o: any) => o.id === order.id || o.orderReference === order.id
+          );
           if (idx !== -1) {
             parsed[idx].aiConversation = updatedConversation;
-            // Also update status to "Action Required" if needed, but keeping it simple
             localStorage.setItem("mock_custom_orders", JSON.stringify(parsed));
             window.dispatchEvent(new Event("storage"));
           }
@@ -186,12 +231,25 @@ export default function OrderDetailPage() {
       setIsContactModalOpen(false);
       setQueryMessage("");
       setIsSubmittingQuery(false);
-      setActiveTab("chat"); // Switch to chat to show the new message
+      setActiveTab("chat");
     }, 800);
   };
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20">
+      {/* Questionnaire Builder Modal Integration */}
+      {showQuestionnaireBuilder && (
+        <QuestionnaireBuilder
+          orderId={order.id}
+          onClose={() => setShowQuestionnaireBuilder(false)}
+          onSuccess={() => {
+            setShowQuestionnaireBuilder(false);
+            handleStatusUpdate("questionnaire_sent");
+            toast.success("Questionnaire sent successfully");
+          }}
+        />
+      )}
+
       {/* Top Navigation & Header */}
       <div className="flex flex-col gap-6">
         <Link
@@ -226,6 +284,27 @@ export default function OrderDetailPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Phase 2: Start Admin Review Button */}
+            {order.status === "enquiry_received" && (
+              <button
+                onClick={() => handleStatusUpdate("pending_admin_review")}
+                className="px-5 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all flex items-center gap-2"
+              >
+                Start Review
+              </button>
+            )}
+
+            {/* Phase 2: Questionnaire Button */}
+            {order.status === "pending_admin_review" && (
+              <button
+                onClick={() => setShowQuestionnaireBuilder(true)}
+                className="px-5 py-2.5 bg-white border-2 border-indigo-600 text-indigo-700 font-bold text-sm rounded-xl hover:bg-indigo-50 transition-all flex items-center gap-2"
+              >
+                <List className="w-4 h-4" />
+                Request Details
+              </button>
+            )}
+
             {order.status !== "cancelled" && (
               <button
                 onClick={handleReject}
@@ -248,10 +327,8 @@ export default function OrderDetailPage() {
       {/* Premium Horizontal Timeline */}
       <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm relative">
         <div className="flex justify-between items-start relative px-4">
-          {/* Connecting Line */}
           <div className="absolute left-6 right-6 top-5 -translate-y-1/2 h-1 bg-slate-100 z-0"></div>
 
-          {/* Progress Line */}
           <div
             className="absolute left-6 top-5 -translate-y-1/2 h-1 bg-indigo-600 z-0 transition-all duration-500"
             style={{
@@ -259,7 +336,7 @@ export default function OrderDetailPage() {
                 (STEPS.findIndex((s) => s.id === order.status) /
                   (STEPS.length - 1)) *
                 96
-              }%`, // Approx percentage width
+              }%`,
             }}
           ></div>
 
@@ -324,7 +401,7 @@ export default function OrderDetailPage() {
             </div>
 
             <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-2xl font-bold text-indigo-600 mb-3 border-4 border-white shadow-lg shadow-indigo-500/10">
+              <div className="w-20 h-20 rounded-full bg-linear-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-2xl font-bold text-indigo-600 mb-3 border-4 border-white shadow-lg shadow-indigo-500/10">
                 {order.customer.avatar}
               </div>
               <h4 className="text-lg font-bold text-slate-900">
@@ -453,7 +530,6 @@ export default function OrderDetailPage() {
                             key={idx}
                             className="relative group rounded-2xl overflow-hidden border border-slate-200 aspect-video bg-slate-100"
                           >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={ref}
                               alt={`Reference ${idx + 1}`}
@@ -474,16 +550,184 @@ export default function OrderDetailPage() {
                       )}
                     </div>
                   ) : (
-                    <div className="border-2 border-dashed border-slate-200 rounded-2xl p-12 text-center bg-slate-50/50 hover:bg-slate-50 transition-colors group">
-                      <div className="w-12 h-12 bg-slate-100 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                        <Paperclip className="w-5 h-5" />
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center text-center group">
+                      <div className="w-12 h-12 bg-white text-slate-400 rounded-xl border border-slate-200 flex items-center justify-center mb-3 shadow-sm group-hover:scale-105 transition-transform">
+                        <ImageIcon className="w-6 h-6" />
                       </div>
-                      <p className="text-sm font-bold text-slate-500">
-                        No images uploaded by customer
+                      <h4 className="text-sm font-bold text-slate-900 mb-1">
+                        No References
+                      </h4>
+                      <p className="text-xs text-slate-500 font-medium max-w-[200px]">
+                        Customer did not upload any reference images for this
+                        order.
                       </p>
                     </div>
                   )}
                 </div>
+
+                {/* Sent Questionnaires Section */}
+                {loadingQuestionnaires && (
+                  <div className="md:col-span-2 mt-8 pt-8 border-t border-slate-100 flex items-center gap-2 text-slate-500">
+                    <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-sm font-medium">
+                      Loading questionnaire details...
+                    </span>
+                  </div>
+                )}
+
+                {!loadingQuestionnaires && questionnaires.length > 0 && (
+                  <div className="md:col-span-2 mt-8 pt-8 border-t border-slate-100 space-y-8">
+                    {questionnaires.map((qItem: any, idx: number) => (
+                      <div key={qItem.id || idx}>
+                        <div className="mb-6 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600">
+                              <List className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-bold text-slate-900">
+                                {qItem.title || "Sent Questionnaire"}
+                              </h3>
+                              <p className="text-xs text-slate-500 font-medium">
+                                {new Date(qItem.createdAt).toLocaleDateString()}{" "}
+                                at{" "}
+                                {new Date(qItem.createdAt).toLocaleTimeString()}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider border border-slate-200 px-2 py-1 rounded bg-slate-50">
+                            ID: {qItem.id}
+                          </span>
+                        </div>
+
+                        <div className="grid gap-3">
+                          {qItem.questions.map((q: any, i: number) => {
+                            // Determine Icon based on type
+                            let TypeIcon = List;
+                            if (q.type === "text" || q.type === "textarea")
+                              TypeIcon = FileText;
+                            if (q.type === "file_upload") TypeIcon = Paperclip; // Or Image if available
+                            if (
+                              q.type === "single_select" ||
+                              q.type === "multiple_select"
+                            )
+                              TypeIcon = CheckCircle2;
+
+                            // Get Answer from responses map if available
+                            const answer = qItem.responses
+                              ? qItem.responses[q.id]
+                              : null;
+
+                            return (
+                              <div
+                                key={q.id}
+                                className="group bg-white p-4 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors shadow-sm"
+                              >
+                                <div className="flex items-start gap-4">
+                                  <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-600 transition-colors shrink-0">
+                                    <span className="text-xs font-bold">
+                                      {i + 1}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <p className="text-sm font-bold text-slate-900">
+                                        {q.text}
+                                      </p>
+                                      {q.required && (
+                                        <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded uppercase tracking-wide">
+                                          Required
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                                      <TypeIcon className="w-3 h-3" />
+                                      <span className="uppercase tracking-wider">
+                                        {q.type.replace("_", " ")}
+                                      </span>
+                                    </div>
+
+                                    {/* Show Response if available */}
+                                    {answer && (
+                                      <div className="mt-4 p-4 bg-emerald-50/50 border border-emerald-100 rounded-lg">
+                                        {q.type === "file_upload" ? (
+                                          <div className="flex items-center gap-3 bg-white p-3 rounded-md border border-slate-200 shadow-sm group/file">
+                                            {typeof answer === "object" &&
+                                            answer.data &&
+                                            answer.type?.startsWith(
+                                              "image/"
+                                            ) ? (
+                                              // Image Preview
+                                              <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 shrink-0 relative group-hover/file:ring-2 ring-indigo-500/20 transition-all">
+                                                <img
+                                                  src={answer.data}
+                                                  alt={answer.name}
+                                                  className="w-full h-full object-cover"
+                                                />
+                                              </div>
+                                            ) : (
+                                              // File Icon
+                                              <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 shrink-0">
+                                                <Paperclip className="w-5 h-5" />
+                                              </div>
+                                            )}
+
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-sm font-bold text-slate-800 truncate">
+                                                {typeof answer === "object"
+                                                  ? answer.name
+                                                  : typeof answer === "string"
+                                                  ? answer
+                                                  : "Attached File"}
+                                              </p>
+                                              <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
+                                                {typeof answer === "object"
+                                                  ? answer.type?.split(
+                                                      "/"
+                                                    )[1] || "FILE"
+                                                  : "FILE"}
+                                              </p>
+                                            </div>
+
+                                            {typeof answer === "object" &&
+                                            answer.data ? (
+                                              <a
+                                                href={answer.data}
+                                                download={answer.name}
+                                                className="px-3 py-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                                              >
+                                                Download
+                                              </a>
+                                            ) : (
+                                              <button
+                                                disabled
+                                                className="px-3 py-1.5 text-xs font-bold text-slate-400 bg-slate-100 rounded-lg cursor-not-allowed"
+                                              >
+                                                Unavailable
+                                              </button>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <div className="text-sm text-slate-700 font-medium bg-white p-3 rounded-md border border-emerald-100/50 shadow-sm whitespace-pre-wrap">
+                                            {typeof answer === "object"
+                                              ? JSON.stringify(answer)
+                                              : answer}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -508,7 +752,7 @@ export default function OrderDetailPage() {
                       {msg.role === "bot" ? (
                         <Sparkles className="w-5 h-5" />
                       ) : msg.role === "admin" ? (
-                        <User className="w-5 h-5" /> /* Admin icon */
+                        <User className="w-5 h-5" />
                       ) : (
                         <User className="w-5 h-5" />
                       )}
@@ -537,7 +781,6 @@ export default function OrderDetailPage() {
                         {msg.content &&
                         (msg.content.startsWith("data:image") ||
                           msg.content.match(/^https?:\/\//i)) ? (
-                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={msg.content}
                             alt="Content"
@@ -576,7 +819,7 @@ export default function OrderDetailPage() {
                 <AlertCircle className="w-5 h-5 text-indigo-600 shrink-0" />
                 <p>
                   Your message will be sent to the customer via email and also
-                  added to the order&apos;s communication log logs.
+                  added to the order&apos;s communication log.
                 </p>
               </div>
               <div>

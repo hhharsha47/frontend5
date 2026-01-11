@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export default function AdminDashboardPage() {
   const stats = [
@@ -58,70 +58,66 @@ export default function AdminDashboardPage() {
     },
   ];
 
-  // State to hold activity
-  const [activities, setActivities] = useState([
-    {
-      id: 1,
-      action: "New Order",
-      user: "Michael Chen",
-      detail: "purchased 1/48 F-14 Tomcat",
-      amount: "$129.99",
-      time: "2 hours ago",
-      initials: "MC",
-      color: "bg-blue-100 text-blue-700",
-    },
-    {
-      id: 2,
-      action: "Commission Request",
-      user: "Sarah Johnson",
-      detail: "requested P-51D Mustang Restoration",
-      amount: "Quote Pending",
-      time: "4 hours ago",
-      initials: "SJ",
-      color: "bg-indigo-100 text-indigo-700",
-    },
-    {
-      id: 3,
-      action: "New Review",
-      user: "David Miller",
-      detail: "left a review on 'Modern Jet Fighter'",
-      amount: "⭐⭐⭐⭐⭐",
-      time: "6 hours ago",
-      initials: "DM",
-      color: "bg-green-100 text-green-700",
-    },
-    {
-      id: 4,
-      action: "System Update",
-      user: "System Admin",
-      detail: "Catalog updated with 5 new items",
-      amount: "-",
-      time: "1 day ago",
-      initials: "SA",
-      color: "bg-slate-100 text-slate-700",
-    },
-  ]);
+  // State to hold activity with lazy initialization
+  const [activities] = useState(() => {
+    const initialActivities = [
+      {
+        id: 1,
+        action: "New Order",
+        user: "Michael Chen",
+        detail: "purchased 1/48 F-14 Tomcat",
+        amount: "$129.99",
+        time: "2 hours ago",
+        initials: "MC",
+        color: "bg-blue-100 text-blue-700",
+      },
+      {
+        id: 2,
+        action: "Commission Request",
+        user: "Sarah Johnson",
+        detail: "requested P-51D Mustang Restoration",
+        amount: "Quote Pending",
+        time: "4 hours ago",
+        initials: "SJ",
+        color: "bg-indigo-100 text-indigo-700",
+      },
+      {
+        id: 3,
+        action: "New Review",
+        user: "David Miller",
+        detail: "left a review on 'Modern Jet Fighter'",
+        amount: "⭐⭐⭐⭐⭐",
+        time: "6 hours ago",
+        initials: "DM",
+        color: "bg-green-100 text-green-700",
+      },
+      {
+        id: 4,
+        action: "System Update",
+        user: "System Admin",
+        detail: "Catalog updated with 5 new items",
+        amount: "-",
+        time: "1 day ago",
+        initials: "SA",
+        color: "bg-slate-100 text-slate-700",
+      },
+    ];
 
-  // Load new activities from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem("adminRecentActivity");
-    if (saved) {
-      try {
-        const newActivities = JSON.parse(saved);
-        if (Array.isArray(newActivities)) {
-          // Merge new activities at the top
-          setActivities((prev) => {
-            // Avoid duplicates if possible (simple check by ID usually, but here just prepend)
-            // Filter out any that might match existing IDs if we want to be safe,
-            // but for now simple concatenation is fine for this demo.
-            return [...newActivities, ...prev];
-          });
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("adminRecentActivity");
+      if (saved) {
+        try {
+          const newActivities = JSON.parse(saved);
+          if (Array.isArray(newActivities)) {
+            return [...newActivities, ...initialActivities];
+          }
+        } catch (e) {
+          console.error("Failed to parse admin activity", e);
         }
-      } catch (e) {
-        console.error("Failed to parse admin activity", e);
       }
     }
-  }, []);
+    return initialActivities;
+  });
 
   const handleDownloadReport = () => {
     toast.success("Downloading Dashboard Report...");
@@ -141,7 +137,7 @@ export default function AdminDashboardPage() {
             Dashboard
           </h1>
           <p className="text-slate-500 mt-1">
-            Overview of your store's performance.
+            Overview of your store&apos;s performance.
           </p>
         </div>
         <div className="flex gap-3">
@@ -160,13 +156,11 @@ export default function AdminDashboardPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => {
-          const Wrapper = stat.href ? Link : "div";
-          return (
-            <Wrapper
-              key={stat.label}
-              href={stat.href || ""}
-              className="bg-white p-7 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all hover:border-slate-200 group cursor-default"
-            >
+          const commonClasses =
+            "bg-white p-7 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all hover:border-slate-200 group cursor-default block h-full";
+
+          const content = (
+            <>
               <div className="flex items-center justify-between mb-6">
                 <div
                   className={`w-14 h-14 rounded-2xl flex items-center justify-center ${stat.bg} ${stat.text} group-hover:scale-110 transition-transform duration-300 shadow-sm`}
@@ -196,7 +190,17 @@ export default function AdminDashboardPage() {
                   {stat.change}
                 </p>
               </div>
-            </Wrapper>
+            </>
+          );
+
+          return stat.href ? (
+            <Link key={stat.label} href={stat.href} className={commonClasses}>
+              {content}
+            </Link>
+          ) : (
+            <div key={stat.label} className={commonClasses}>
+              {content}
+            </div>
           );
         })}
       </div>
