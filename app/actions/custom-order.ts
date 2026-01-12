@@ -11,6 +11,7 @@ const DB_PATH = path.join(process.cwd(), "mock_db.json");
 interface MockDB {
     orders: any[];
     questionnaires: any[];
+    quotes: any[];
 }
 
 // LOAD DATA helper
@@ -55,7 +56,8 @@ function loadData(): MockDB {
             questionnaireCompleted: false,
           },
         ],
-        questionnaires: []
+        questionnaires: [],
+        quotes: []
     };
 }
 
@@ -124,52 +126,57 @@ export async function updateCustomOrderStatus(orderId: string, status: string) {
 }
 
 export async function createQuestionnaire(orderId: string, data: any) {
-  const db = loadData();
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  
-  console.log("Creating Questionnaire for", orderId, data);
-  
-  // Check if order mock exists
-  let orderIndex = db.orders.findIndex(o => o.orderReference === orderId || o.id.toString() === orderId);
-  
-  // If not found, create a stub for it so the flow continues
-  if (orderIndex === -1) {
-      const newOrder = {
-          id: db.orders.length + 100,
-          orderReference: orderId,
-          status: "questionnaire_sent", // Auto update status
-          questionnaireSent: true, 
-          clientName: "Guest",
-          email: "guest@example.com",
-          subject: "Auto-Created Order",
-          description: "...",
-          submittedAt: new Date().toISOString(),
-          questionnaireCompleted: false
-      };
-      db.orders.push(newOrder);
-      orderIndex = db.orders.length - 1;
-  } else {
-      // Update existing
-      db.orders[orderIndex].status = "questionnaire_sent";
-      db.orders[orderIndex].questionnaireSent = true;
-  }
-  
-  // Save mock questionnaire
-  const newQ = {
-    id: db.questionnaires.length + 1,
-    customOrderId: db.orders[orderIndex].id || orderId,
-    orderReference: orderId,
-    ...data,
-    createdAt: new Date().toISOString()
-  };
-  db.questionnaires.push(newQ);
-  
-  saveData(db); // PERSIST
+  try {
+    const db = loadData();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    
+    console.log("Creating Questionnaire for", orderId, data);
+    
+    // Check if order mock exists
+    let orderIndex = db.orders.findIndex(o => o.orderReference === orderId || o.id.toString() === orderId);
+    
+    // If not found, create a stub for it so the flow continues
+    if (orderIndex === -1) {
+        const newOrder = {
+            id: db.orders.length + 100,
+            orderReference: orderId,
+            status: "questionnaire_sent", // Auto update status
+            questionnaireSent: true, 
+            clientName: "Guest",
+            email: "guest@example.com",
+            subject: "Auto-Created Order",
+            description: "...",
+            submittedAt: new Date().toISOString(),
+            questionnaireCompleted: false
+        };
+        db.orders.push(newOrder);
+        orderIndex = db.orders.length - 1;
+    } else {
+        // Update existing
+        db.orders[orderIndex].status = "questionnaire_sent";
+        db.orders[orderIndex].questionnaireSent = true;
+    }
+    
+    // Save mock questionnaire
+    const newQ = {
+      id: db.questionnaires.length + 1,
+      customOrderId: db.orders[orderIndex].id || orderId,
+      orderReference: orderId,
+      ...data,
+      createdAt: new Date().toISOString()
+    };
+    db.questionnaires.push(newQ);
+    
+    saveData(db); // PERSIST
 
-  revalidatePath(`/admin/custom-design/${orderId}`);
-  revalidatePath(`/admin/custom-orders/${orderId}`);
-  
-  return { success: true, questionnaireId: newQ.id };
+    revalidatePath(`/admin/custom-design/${orderId}`);
+    revalidatePath(`/admin/custom-orders/${orderId}`);
+    
+    return { success: true, questionnaireId: newQ.id };
+  } catch (error) {
+    console.error("Error creating questionnaire:", error);
+    return { success: false, error: "Failed to create questionnaire" };
+  }
 }
 
 export async function submitQuestionnaireResponse(questionnaireId: number, responses: any) {
@@ -222,4 +229,192 @@ export async function getPendingQuestionnaire(orderId: string) {
     if (q) return q;
 
     return null;
+}
+
+// --- Phase 3: Quote Negotiation ---
+
+export async function createQuote(orderId: string, data: any) {
+    const db = loadData();
+    if (!db.quotes) db.quotes = [];
+
+    const newQuote = {
+        id: db.quotes.length + 1,
+        orderReference: orderId,
+        version: 1, // Logic to increment version if previous quotes exist could be added here
+        status: 'sent', // sent, accepted, rejected, expired
+        amount: parseFloat(data.amount),
+        currency: 'USD', // Default for now
+        timeline: data.timeline, // e.g. "14 Days"
+        validUntil: data.validUntil,
+        scopeOfWork: data.scopeOfWork, // Array of strings
+        terms: data.terms,
+        createdAt: new Date().toISOString()
+    };
+
+    // Calculate version number
+    const existingQuotes = db.quotes.filter((q: any) => q.orderReference === orderId);
+    if (existingQuotes.length > 0) {
+        newQuote.version = existingQuotes.length + 1;
+    }
+
+    db.quotes.push(newQuote);
+
+    // Update Order Status
+    const oIndex = db.orders.findIndex(o => o.orderReference === orderId || o.id === orderId);
+    if (oIndex !== -1) {
+        db.orders[oIndex].status = "quote_sent";
+        db.orders[oIndex].quoteSent = true;
+        // Optimization: Store latest quote ID on order for easy access
+        db.orders[oIndex].latestQuoteId = newQuote.id;
+    }
+
+    saveData(db);
+    revalidatePath(`/admin/custom-orders/${orderId}`);
+    revalidatePath(`/profile`);
+    return { success: true, quote: newQuote };
+}
+
+export async function getQuotesForOrder(orderId: string) {
+    const db = loadData();
+    if (!db.quotes) return [];
+    return db.quotes.filter(q => q.orderReference === orderId || q.customOrderId === orderId).sort((a,b) => b.id - a.id);
+}
+
+export async function acceptQuote(quoteId: number) {
+    const db = loadData();
+    const qIndex = db.quotes.findIndex(q => q.id === quoteId);
+    if (qIndex === -1) return { success: false, error: 'Quote not found' };
+
+    // Update Quote Status
+    db.quotes[qIndex].status = 'accepted';
+    db.quotes[qIndex].acceptedAt = new Date().toISOString();
+
+    // Reject all other open quotes for this order
+    const orderRef = db.quotes[qIndex].orderReference;
+    db.quotes.forEach(q => {
+        if (q.orderReference === orderRef && q.id !== quoteId && q.status === 'sent') {
+            q.status = 'superseded';
+        }
+    });
+
+    // Update Order Status
+    const oIndex = db.orders.findIndex(o => o.orderReference === orderRef || o.id === orderRef);
+    if (oIndex !== -1) {
+        db.orders[oIndex].status = "quote_accepted";
+        db.orders[oIndex].paymentPending = true;
+    }
+
+    saveData(db);
+    revalidatePath(`/profile`);
+    revalidatePath(`/admin/custom-orders/${orderRef}`);
+    return { success: true };
+}
+
+export async function rejectQuote(quoteId: number, reason: string) {
+    const db = loadData();
+    const qIndex = db.quotes.findIndex(q => q.id === quoteId);
+    if (qIndex === -1) return { success: false, error: 'Quote not found' };
+
+    // Update Quote Status
+    db.quotes[qIndex].status = 'rejected';
+    db.quotes[qIndex].rejectionReason = reason;
+
+    // Update Order Status
+    const orderRef = db.quotes[qIndex].orderReference;
+    const oIndex = db.orders.findIndex(o => o.orderReference === orderRef || o.id === orderRef);
+    if (oIndex !== -1) {
+        db.orders[oIndex].status = "quote_revision_requested";
+    }
+
+    saveData(db);
+    revalidatePath(`/profile`);
+    revalidatePath(`/admin/custom-orders/${orderRef}`);
+    return { success: true };
+}
+
+
+// --- Phase 4: Invoice & Payment ---
+
+export async function generateInvoice(orderId: string) {
+  try {
+    const db = await loadData();
+    // Support finding by orderReference (mock usage) or direct ID
+    const orderIndex = db.orders.findIndex((o) => o.id === orderId || o.orderReference === orderId);
+
+    if (orderIndex === -1) {
+      return { success: false, error: "Order not found" };
+    }
+    const order = db.orders[orderIndex];
+
+    // In a real app, 'quote' would be linked. Here we assume the latest quote in db.quotes matches
+    // Or we look at the 'quote' attached to the order if we persisted it.
+    // For this mock, let's look up the accepted quote.
+    const quote = db.quotes?.find(q => (q.orderReference === order.id || q.orderReference === order.orderReference) && q.status === 'accepted');
+
+    if (!quote) {
+        return { success: false, error: "No accepted quote found for this order" };
+    }
+
+    // Mock Invoice Generation
+    const invoice = {
+        id: `INV-${Date.now().toString().slice(-4)}`,
+        createdAt: new Date().toISOString(),
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
+        items: [
+            { desc: "Custom Model Fabrication", qty: 1, price: quote.amount || 0 }
+        ],
+        subtotal: quote.amount || 0,
+        tax: (quote.amount || 0) * 0.1, // 10% tax
+        total: (quote.amount || 0) * 1.1,
+        status: "unpaid"
+    };
+
+    db.orders[orderIndex].invoice = invoice;
+    db.orders[orderIndex].status = "invoice_generated";
+    
+    await saveData(db);
+    revalidatePath("/admin/custom-orders/[id]");
+    revalidatePath("/(public)/profile");
+    
+    return { success: true, invoice };
+
+  } catch (error) {
+    console.error("Error generating invoice:", error);
+    return { success: false, error: "Failed to generate invoice" };
+  }
+}
+
+export async function processPayment(orderId: string, paymentMethod: string) {
+    try {
+        const db = await loadData();
+        const orderIndex = db.orders.findIndex((o) => o.id === orderId || o.orderReference === orderId);
+        
+        if (orderIndex === -1) {
+            return { success: false, error: "Order not found" };
+        }
+        
+        const order = db.orders[orderIndex];
+
+        if (!order.invoice) {
+             return { success: false, error: "Invoice not found" };
+        }
+
+        // Simulate Processing Delay managed by UI
+        order.invoice.status = "paid";
+        order.invoice.paidAt = new Date().toISOString();
+        order.invoice.paymentMethod = paymentMethod;
+        order.status = "processing"; // Move to production phase
+        order.paymentPending = false;
+
+        db.orders[orderIndex] = order;
+
+        await saveData(db);
+        revalidatePath("/(public)/profile");
+        
+        return { success: true };
+
+    } catch (e) {
+        console.error("Payment error", e);
+        return { success: false, error: "Payment failed" };
+    }
 }

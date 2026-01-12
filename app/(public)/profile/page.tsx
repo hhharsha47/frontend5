@@ -34,7 +34,12 @@ import { toast } from "sonner";
 import { useCart } from "@/context/CartContext";
 import { AnimatePresence, motion } from "framer-motion";
 import QuestionnaireResponder from "@/components/custom-order/QuestionnaireResponder";
-import { getPendingQuestionnaire } from "@/app/actions/custom-order";
+import QuoteViewer from "@/components/custom-order/QuoteViewer";
+import InvoiceViewer from "@/components/custom-order/InvoiceViewer";
+import {
+  getPendingQuestionnaire,
+  getQuotesForOrder,
+} from "@/app/actions/custom-order";
 
 // Mock Data Types
 type OrderStatus = "Processing" | "Shipped" | "Delivered" | "Cancelled";
@@ -62,13 +67,19 @@ interface Order {
   steps: OrderStep[];
 }
 
-interface CustomRequest {
+interface PageCustomRequest {
   id: string;
   submittedDate: string;
   title: string;
   description: string;
   estCost: number;
-  status: "In Progress" | "Quote Ready" | "Pending Approval" | "Completed";
+  status:
+    | "In Progress"
+    | "Quote Ready"
+    | "Pending Approval"
+    | "Completed"
+    | "Action Required"
+    | "Cancelled";
   progress: number;
   image: string;
   steps: OrderStep[];
@@ -81,6 +92,8 @@ interface CustomRequest {
     total: number;
   };
   aiConversation?: Array<{ role: string; content: string; timestamp?: string }>;
+  quote?: any;
+  invoice?: any;
 }
 
 function ProfileContent() {
@@ -95,12 +108,13 @@ function ProfileContent() {
     "custom"
   );
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [selectedRequest, setSelectedRequest] = useState<CustomRequest | null>(
+  const [selectedRequest, setSelectedRequest] =
+    useState<PageCustomRequest | null>(null);
+  const [selectedQuote, setSelectedQuote] = useState<PageCustomRequest | null>(
     null
   );
-  const [selectedQuote, setSelectedQuote] = useState<CustomRequest | null>(
-    null
-  );
+  const [selectedInvoice, setSelectedInvoice] =
+    useState<PageCustomRequest | null>(null);
   const [activeQuestionnaire, setActiveQuestionnaire] = useState<any | null>(
     null
   );
@@ -264,7 +278,7 @@ function ProfileContent() {
     },
   ];
 
-  const [customRequests, setCustomRequests] = useState<CustomRequest[]>([]);
+  const [customRequests, setCustomRequests] = useState<PageCustomRequest[]>([]);
 
   useEffect(() => {
     const loadCustomOrders = async () => {
@@ -299,11 +313,29 @@ function ProfileContent() {
                       o.status = "questionnaire_sent";
                       o.questionnaireSent = true;
                       o.questionnaireCompleted = false;
+                      o.questionnaireCompleted = false;
                     }
                     hasUpdates = true;
                   }
+
+                  // CHECK FOR QUOTES
+                  const quotes = await getQuotesForOrder(
+                    o.orderReference || o.id
+                  );
+                  if (quotes && quotes.length > 0) {
+                    o.quote = quotes[0]; // Attach latest quote
+                    // Update status if needed (server status takes precedence usually but good to sync)
+                    if (
+                      o.status === "quote_sent" ||
+                      o.status === "quote_accepted"
+                    ) {
+                      // o.status is already correct from server, just ensuring UI logic has the data
+                    }
+                    console.log("Attached quote to", o.id);
+                    hasUpdates = true;
+                  }
                 } catch (err) {
-                  console.error("Error checking questionnaire", err);
+                  console.error("Error checking sync", err);
                 }
               }
               return o;
@@ -328,9 +360,10 @@ function ProfileContent() {
             }
 
             // Determine Status
-            let statusLabel: CustomRequest["status"] = "In Progress";
+            let statusLabel: PageCustomRequest["status"] = "In Progress";
             if (o.status === "cancelled") statusLabel = "Cancelled";
-            else if (o.status === "quote_ready") statusLabel = "Quote Ready";
+            else if (o.status === "quote_ready" || o.status === "quote_sent")
+              statusLabel = "Quote Ready";
             else if (o.status === "questionnaire_completed")
               statusLabel = "In Progress"; // Or specific status
             else if (
@@ -477,7 +510,7 @@ function ProfileContent() {
     }, 800);
   };
 
-  const handleOpenQuestionnaire = async (request: CustomRequest) => {
+  const handleOpenQuestionnaire = async (request: PageCustomRequest) => {
     try {
       const q = await getPendingQuestionnaire(request.id);
       if (q) {
@@ -1324,131 +1357,17 @@ function ProfileContent() {
       </div>
 
       {/* Quote Review Modal */}
-      {selectedQuote && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border-t-4 border-indigo-600">
-            <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-start">
-              <div>
-                <h3 className="font-bold text-xl text-slate-900 font-display">
-                  Quote Review
-                </h3>
-                <p className="text-sm text-slate-500 mt-1">
-                  {selectedQuote.title}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
-                  title="Print Quote"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="lucide lucide-printer"
-                  >
-                    <polyline points="6 9 6 2 18 2 18 9" />
-                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                    <rect width="12" height="8" x="6" y="14" />
-                  </svg>
-                </button>
-                <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-                  Ready for Approval
-                </div>
-              </div>
-            </div>
-
-            <div className="p-8 space-y-6">
-              {selectedQuote.pricing ? (
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm text-slate-600">
-                    <span>Base Model Cost</span>
-                    <span className="font-medium">
-                      ${selectedQuote.pricing.base.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm text-slate-600">
-                    <span>Custom Labor (Paint & Assembly)</span>
-                    <span className="font-medium">
-                      ${selectedQuote.pricing.labor.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm text-slate-600">
-                    <span>Materials & Consumables</span>
-                    <span className="font-medium">
-                      ${selectedQuote.pricing.materials.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm text-slate-600">
-                    <span>Shipping & Handling</span>
-                    <span className="font-medium">
-                      ${selectedQuote.pricing.shipping.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
-                    <span className="font-bold text-slate-900">
-                      Total Estimate
-                    </span>
-                    <span className="font-bold text-2xl text-indigo-600 font-mono">
-                      ${selectedQuote.pricing.total.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-6 text-slate-500">
-                  Pricing calculation in progress...
-                </div>
-              )}
-
-              <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-100 text-xs text-yellow-800 flex gap-3">
-                <div className="bg-yellow-100 p-1 rounded-full h-fit shrink-0">
-                  <Sparkles className="w-3.5 h-3.5 text-yellow-600" />
-                </div>
-                <p className="leading-relaxed">
-                  This quote includes all labor, materials, and protective
-                  packaging. Estimated completion time is 4-6 weeks from payment
-                  date.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <button
-                  onClick={() => {
-                    toast.error("Quote declined. We will contact you shortly.");
-                    setSelectedQuote(null);
-                  }}
-                  className="px-4 py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors"
-                >
-                  Decline Quote
-                </button>
-                <button
-                  onClick={() => {
-                    toast.success("Payment successful! Mission is a go.");
-                    setSelectedQuote(null);
-                  }}
-                  className="px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 group"
-                >
-                  <CreditCard className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  Pay & Accept
-                </button>
-              </div>
-            </div>
-            <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 text-center">
-              <button
-                onClick={() => setSelectedQuote(null)}
-                className="text-xs font-bold text-slate-400 hover:text-slate-600"
-              >
-                Close Window
-              </button>
-            </div>
-          </div>
-        </div>
+      {selectedQuote && selectedQuote.quote && (
+        <QuoteViewer
+          quote={selectedQuote.quote}
+          onClose={() => setSelectedQuote(null)}
+          onStatusUpdate={() => {
+            setSelectedQuote(null);
+            // Force refresh
+            const event = new Event("storage");
+            window.dispatchEvent(event);
+          }}
+        />
       )}
       {selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -1720,6 +1639,18 @@ function ProfileContent() {
             </div>
           </div>
         </div>
+      )}
+      {selectedInvoice && selectedInvoice.invoice && (
+        <InvoiceViewer
+          orderId={selectedInvoice.id}
+          invoice={selectedInvoice.invoice}
+          onClose={() => setSelectedInvoice(null)}
+          onPaymentSuccess={() => {
+            // Refresh data logic handled by component reload or context update usually
+            // But for now we just verify status updates via revalidatePath
+            window.location.reload();
+          }}
+        />
       )}
     </div>
   );

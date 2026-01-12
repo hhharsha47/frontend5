@@ -17,12 +17,21 @@ import {
   List,
   FileText,
   Image as ImageIcon,
+  DollarSign,
+  Receipt,
+  Trash2,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import QuestionnaireBuilder from "@/components/admin/QuestionnaireBuilder";
+import QuoteBuilder from "@/components/admin/QuoteBuilder";
 import { toast } from "sonner";
-import { getOrderQuestionnaires } from "@/app/actions/custom-order";
+import {
+  getOrderQuestionnaires,
+  getQuotesForOrder,
+  generateInvoice,
+} from "@/app/actions/custom-order";
 
 // Mock Data (in a real app, this would be fetched based on ID)
 const MOCK_ORDER_DETAILS = {
@@ -49,7 +58,9 @@ const MOCK_ORDER_DETAILS = {
       content: "Hello! Welcome to SkyScale. How can I assist you today?",
     },
     { role: "user", content: "I want to start a custom order" },
+    { role: "user", content: "I want to start a custom order" },
   ],
+  invoice: null as any, // Placeholder for type inference
 };
 
 const STEPS = [
@@ -78,6 +89,8 @@ export default function OrderDetailPage() {
     useState(false);
   const [questionnaires, setQuestionnaires] = useState<any[]>([]);
   const [loadingQuestionnaires, setLoadingQuestionnaires] = useState(false);
+  const [showQuoteBuilder, setShowQuoteBuilder] = useState(false);
+  const [quotes, setQuotes] = useState<any[]>([]);
 
   React.useEffect(() => {
     const findOrder = () => {
@@ -144,6 +157,9 @@ export default function OrderDetailPage() {
           const qs = await getOrderQuestionnaires(order.id);
           console.log("Fetched Qs:", qs);
           setQuestionnaires(qs || []);
+
+          const fetchedQuotes = await getQuotesForOrder(order.id);
+          setQuotes(fetchedQuotes || []);
         } catch (error) {
           console.error("Failed to fetch questionnaires", error);
         } finally {
@@ -728,6 +744,150 @@ export default function OrderDetailPage() {
                     ))}
                   </div>
                 )}
+
+                {/* --- Phase 3: Quote Section --- */}
+                <div className="md:col-span-2 mt-8 pt-8 border-t border-slate-100">
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="font-bold text-slate-900 flex items-center gap-2 text-lg">
+                        <DollarSign className="w-5 h-5 text-emerald-600" />
+                        Quote & Negotiation
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Manage price proposals and timeline
+                      </p>
+                    </div>
+                    {!showQuoteBuilder && (
+                      <button
+                        onClick={() => setShowQuoteBuilder(true)}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 text-sm"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        Create New Quote
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Builder Modal (Inline) */}
+                  {showQuoteBuilder && (
+                    <div className="mb-8 animate-in slide-in-from-top-4 duration-300">
+                      <QuoteBuilder
+                        orderId={order.id}
+                        onSuccess={() => {
+                          setShowQuoteBuilder(false);
+                          window.location.reload(); // Quick refresh to show new quote
+                        }}
+                        onCancel={() => setShowQuoteBuilder(false)}
+                      />
+                    </div>
+                  )}
+
+                  {/* Quote History */}
+                  {quotes.length > 0 ? (
+                    <div className="space-y-4">
+                      {quotes.map((quote: any) => (
+                        <div
+                          key={quote.id}
+                          className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center shadow-sm gap-4 transition-all hover:border-indigo-300 group"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div
+                              className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-lg ${
+                                quote.status === "accepted"
+                                  ? "bg-emerald-100 text-emerald-600"
+                                  : quote.status === "rejected"
+                                  ? "bg-red-100 text-red-600"
+                                  : "bg-slate-100 text-slate-500"
+                              }`}
+                            >
+                              {quote.status === "accepted" ? (
+                                <CheckCircle2 className="w-5 h-5" />
+                              ) : quote.status === "rejected" ? (
+                                <X className="w-5 h-5" />
+                              ) : (
+                                <FileText className="w-5 h-5" />
+                              )}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-3">
+                                <span className="font-display font-bold text-slate-900 text-lg">
+                                  ${quote.amount.toLocaleString()}
+                                </span>
+                                <span
+                                  className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded tracking-wider ${
+                                    quote.status === "accepted"
+                                      ? "bg-emerald-100 text-emerald-700"
+                                      : quote.status === "rejected"
+                                      ? "bg-red-100 text-red-700"
+                                      : "bg-blue-50 text-blue-600"
+                                  }`}
+                                >
+                                  {quote.status}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3 text-xs text-slate-500 font-medium mt-0.5">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" /> {quote.timeline}
+                                </span>
+                                <span>•</span>
+                                <span>Ver {quote.version}</span>
+                                <span>•</span>
+                                <span>
+                                  {new Date(
+                                    quote.createdAt
+                                  ).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {quote.status === "accepted" && !order.invoice && (
+                              <button
+                                onClick={async () => {
+                                  toast.loading("Generating Invoice...");
+                                  const res = await generateInvoice(order.id);
+                                  if (res.success) {
+                                    toast.success(
+                                      "Invoice generated successfully!"
+                                    );
+                                    window.location.reload();
+                                  } else {
+                                    toast.error(
+                                      res.error || "Failed to generate invoice"
+                                    );
+                                  }
+                                }}
+                                className="text-xs font-bold text-emerald-600 hover:text-emerald-700 px-3 py-1.5 bg-emerald-50 rounded-lg flex items-center gap-1.5 border border-emerald-100 shadow-sm"
+                              >
+                                <Receipt className="w-3.5 h-3.5" />
+                                Generate Invoice
+                              </button>
+                            )}
+                            <button className="text-xs font-bold text-indigo-600 hover:text-indigo-700 px-3 py-1.5 bg-indigo-50 rounded-lg">
+                              View Details
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    !showQuoteBuilder && (
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-8 flex flex-col items-center justify-center text-center">
+                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-300 mb-3 shadow-sm">
+                          <DollarSign className="w-5 h-5" />
+                        </div>
+                        <p className="text-sm font-bold text-slate-900">
+                          No Quotes Sent Yet
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1 max-w-[200px]">
+                          Create a quote to start the negotiation phase.
+                        </p>
+                      </div>
+                    )
+                  )}
+                </div>
               </div>
             </div>
           ) : (

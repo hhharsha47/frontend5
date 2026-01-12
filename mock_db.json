@@ -43,14 +43,16 @@
     {
       "id": 103,
       "orderReference": "CO-2026-925",
-      "status": "questionnaire_completed",
+      "status": "quote_sent",
       "questionnaireSent": true,
       "clientName": "Guest",
       "email": "guest@example.com",
       "subject": "Auto-Created Order",
       "description": "...",
       "submittedAt": "2026-01-11T11:59:18.823Z",
-      "questionnaireCompleted": true
+      "questionnaireCompleted": true,
+      "quoteSent": true,
+      "latestQuoteId": 1
     }
   ],
   "questionnaires": [
@@ -133,6 +135,24 @@
         }
       ],
       "createdAt": "2026-01-11T12:07:04.800Z"
+    }
+  ],
+  "quotes": [
+    {
+      "id": 1,
+      "orderReference": "CO-2026-925",
+      "version": 1,
+      "status": "sent",
+      "amount": 4500,
+      "currency": "USD",
+      "timeline": "2",
+      "validUntil": "2026-01-12",
+      "scopeOfWork": [
+        "Pop",
+        "Push"
+      ],
+      "terms": "50% advance payment required to start work.\nRemaining 50% before shipping.\nShipping costs calculated separately.",
+      "createdAt": "2026-01-11T12:37:16.482Z"
     }
   ]
 }
