@@ -26,7 +26,6 @@ import {
   HelpCircle,
   FileText,
   AlertTriangle,
-  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -294,10 +293,9 @@ function ProfileContent() {
           parsed = await Promise.all(
             parsed.map(async (o: any) => {
               // Only checks orders that are seemingly pending review but might have a questionnaire
-              if (
-                o.status === "pending_admin_review" ||
-                o.status === "enquiry_received"
-              ) {
+              // ALWAYS Check backend for every order to ensure we catch all updates
+              // Remove restrictive status checks
+              if (true) {
                 try {
                   // Use Order ID or Reference
                   const q = await getPendingQuestionnaire(
@@ -387,7 +385,9 @@ function ProfileContent() {
                 : "Custom Request",
               description: reqs.description || "No description provided.",
               estCost:
-                parseInt((reqs.budgetRange || "0").replace(/[^0-9]/g, "")) || 0,
+                o.quote?.amount ||
+                parseInt((reqs.budgetRange || "0").replace(/[^0-9]/g, "")) ||
+                0,
               status: statusLabel,
               progress:
                 o.status === "quote_ready"
@@ -435,7 +435,18 @@ function ProfileContent() {
       }
     };
 
+    // Initial load
     loadCustomOrders();
+
+    // Auto-sync polling every 5 seconds to catch Admin updates fast
+    const interval = setInterval(() => {
+      // Quietly reload without causing full page flicker if possible,
+      // but loadCustomOrders updates state which is fine.
+      console.log("Auto-syncing custom orders...");
+      loadCustomOrders();
+    }, 5000);
+
+    return () => clearInterval(interval);
 
     // Listen for updates from Admin page
     window.addEventListener("storage", loadCustomOrders);
@@ -894,14 +905,6 @@ function ProfileContent() {
                       )}
                     >
                       Past History
-                    </button>
-                    <button
-                      onClick={() => window.location.reload()}
-                      className="px-4 py-2 rounded-lg text-xs font-bold text-slate-500 hover:text-indigo-600 hover:bg-white transition-all flex items-center gap-2"
-                      title="Force Sync with Server"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      Sync
                     </button>
                   </div>
                   <div className="relative flex-1 max-w-sm">

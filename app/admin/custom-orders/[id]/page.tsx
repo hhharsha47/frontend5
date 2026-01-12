@@ -286,13 +286,9 @@ export default function OrderDetailPage() {
               orderId={order.id}
               onSuccess={() => {
                 setShowQuoteBuilder(false);
-                // Refresh data
-                const fetchQ = async () => {
-                  const fetchedQuotes = await getQuotesForOrder(order.id);
-                  setQuotes(fetchedQuotes || []);
-                };
-                fetchQ();
                 toast.success("Quote created successfully");
+                // Force full reload to ensure data is fresh
+                window.location.reload();
               }}
               onCancel={() => setShowQuoteBuilder(false)}
             />
