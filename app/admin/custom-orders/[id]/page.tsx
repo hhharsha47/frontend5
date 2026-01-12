@@ -18,9 +18,8 @@ import {
   FileText,
   Image as ImageIcon,
   DollarSign,
+  MessageSquare,
   Receipt,
-  Trash2,
-  Calendar,
   Plus,
 } from "lucide-react";
 import Link from "next/link";
@@ -280,7 +279,7 @@ export default function OrderDetailPage() {
 
       {/* Quote Builder Modal (Portal) */}
       {showQuoteBuilder && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <QuoteBuilder
               orderId={order.id}
@@ -379,7 +378,24 @@ export default function OrderDetailPage() {
             className="absolute left-6 top-5 -translate-y-1/2 h-1 bg-indigo-600 z-0 transition-all duration-500"
             style={{
               width: `${
-                (STEPS.findIndex((s) => s.id === order.status) /
+                ((() => {
+                  let idx = STEPS.findIndex((s) => s.id === order.status);
+                  if (idx === -1) {
+                    if (order.status === "quote_sent")
+                      idx = STEPS.findIndex((s) => s.id === "quote_ready");
+                    if (order.status === "quote_revision_requested")
+                      idx = STEPS.findIndex(
+                        (s) => s.id === "pending_admin_review"
+                      );
+                    if (order.status === "questionnaire_sent")
+                      idx = STEPS.findIndex((s) => s.id === "enquiry_received");
+                    if (order.status === "questionnaire_completed")
+                      idx = STEPS.findIndex(
+                        (s) => s.id === "pending_admin_review"
+                      );
+                  }
+                  return Math.max(0, idx);
+                })() /
                   (STEPS.length - 1)) *
                 96
               }%`,
@@ -387,9 +403,30 @@ export default function OrderDetailPage() {
           ></div>
 
           {STEPS.map((step, idx) => {
-            const currentIdx = STEPS.findIndex((s) => s.id === order.status);
+            // Robust index finding with alias handling
+            let currentIdx = STEPS.findIndex((s) => s.id === order.status);
+
+            // Fallback mappings for intermediate statuses
+            if (currentIdx === -1) {
+              if (order.status === "quote_sent")
+                currentIdx = STEPS.findIndex((s) => s.id === "quote_ready");
+              if (order.status === "quote_revision_requested")
+                currentIdx = STEPS.findIndex(
+                  (s) => s.id === "pending_admin_review"
+                );
+              if (order.status === "questionnaire_sent")
+                currentIdx = STEPS.findIndex(
+                  (s) => s.id === "enquiry_received"
+                );
+              if (order.status === "questionnaire_completed")
+                currentIdx = STEPS.findIndex(
+                  (s) => s.id === "pending_admin_review"
+                );
+            }
+
             const isCompleted = idx <= currentIdx;
-            const isActive = step.id === order.status;
+            // Active is the current step (tip of the progress)
+            const isActive = idx === currentIdx;
 
             return (
               <div
@@ -889,86 +926,89 @@ export default function OrderDetailPage() {
                       {quotes.map((quote: any) => (
                         <div
                           key={quote.id}
-                          className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center shadow-sm gap-4 transition-all hover:border-indigo-300 group"
+                          className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col shadow-sm gap-4 transition-all hover:border-indigo-300 group"
                         >
-                          <div className="flex items-center gap-4">
-                            <div
-                              className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-lg ${
-                                quote.status === "accepted"
-                                  ? "bg-emerald-100 text-emerald-600"
-                                  : quote.status === "rejected"
-                                  ? "bg-red-100 text-red-600"
-                                  : "bg-slate-100 text-slate-500"
-                              }`}
-                            >
-                              {quote.status === "accepted" ? (
-                                <CheckCircle2 className="w-5 h-5" />
-                              ) : quote.status === "rejected" ? (
-                                <X className="w-5 h-5" />
-                              ) : (
-                                <FileText className="w-5 h-5" />
-                              )}
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
+                            <div className="flex items-center gap-4">
+                              <div
+                                className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-lg ${
+                                  quote.status === "accepted"
+                                    ? "bg-emerald-100 text-emerald-600"
+                                    : quote.status === "rejected"
+                                    ? "bg-red-100 text-red-600"
+                                    : "bg-slate-100 text-slate-500"
+                                }`}
+                              >
+                                {quote.status === "accepted" ? (
+                                  <CheckCircle2 className="w-5 h-5" />
+                                ) : quote.status === "rejected" ? (
+                                  <X className="w-5 h-5" />
+                                ) : (
+                                  <FileText className="w-5 h-5" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-3">
+                                  <span className="font-display font-bold text-slate-900 text-lg">
+                                    ${quote.amount.toLocaleString()}
+                                  </span>
+                                  <span
+                                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded tracking-wider ${
+                                      quote.status === "accepted"
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : quote.status === "rejected"
+                                        ? "bg-red-100 text-red-700"
+                                        : "bg-blue-50 text-blue-600"
+                                    }`}
+                                  >
+                                    {quote.status}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-slate-500 font-medium mt-0.5">
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />{" "}
+                                    {quote.timeline}
+                                  </span>
+                                  <span>•</span>
+                                  <span>Ver {quote.version}</span>
+                                  <span>•</span>
+                                  <span>
+                                    {new Date(
+                                      quote.createdAt
+                                    ).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
-                            <div>
-                              <div className="flex items-center gap-3">
-                                <span className="font-display font-bold text-slate-900 text-lg">
-                                  ${quote.amount.toLocaleString()}
-                                </span>
-                                <span
-                                  className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded tracking-wider ${
-                                    quote.status === "accepted"
-                                      ? "bg-emerald-100 text-emerald-700"
-                                      : quote.status === "rejected"
-                                      ? "bg-red-100 text-red-700"
-                                      : "bg-blue-50 text-blue-600"
-                                  }`}
-                                >
-                                  {quote.status}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-3 text-xs text-slate-500 font-medium mt-0.5">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" /> {quote.timeline}
-                                </span>
-                                <span>•</span>
-                                <span>Ver {quote.version}</span>
-                                <span>•</span>
-                                <span>
-                                  {new Date(
-                                    quote.createdAt
-                                  ).toLocaleDateString()}
-                                </span>
-                              </div>
+
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {quote.status === "accepted" &&
+                                !order.invoice && (
+                                  <button
+                                    onClick={() => handleGenerateInvoice(quote)}
+                                    // ...
+                                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                    title="Generate Invoice"
+                                  >
+                                    <FileText className="w-4 h-4" />
+                                  </button>
+                                )}
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {quote.status === "accepted" && !order.invoice && (
-                              <button
-                                onClick={async () => {
-                                  toast.loading("Generating Invoice...");
-                                  const res = await generateInvoice(order.id);
-                                  if (res.success) {
-                                    toast.success(
-                                      "Invoice generated successfully!"
-                                    );
-                                    window.location.reload();
-                                  } else {
-                                    toast.error(
-                                      res.error || "Failed to generate invoice"
-                                    );
-                                  }
-                                }}
-                                className="text-xs font-bold text-emerald-600 hover:text-emerald-700 px-3 py-1.5 bg-emerald-50 rounded-lg flex items-center gap-1.5 border border-emerald-100 shadow-sm"
-                              >
-                                <Receipt className="w-3.5 h-3.5" />
-                                Generate Invoice
-                              </button>
+                          {/* Show Rejection Reason if applicable */}
+                          {quote.status === "rejected" &&
+                            quote.rejectionReason && (
+                              <div className="w-full mt-1 bg-red-50 border border-red-100 rounded-lg p-3 text-sm text-red-800 flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
+                                <MessageSquare className="w-4 h-4 mt-0.5 shrink-0" />
+                                <div>
+                                  <span className="font-bold block text-xs uppercase tracking-wide opacity-70 mb-0.5">
+                                    Customer Feedback:
+                                  </span>
+                                  &quot;{quote.rejectionReason}&quot;
+                                </div>
+                              </div>
                             )}
-                            <button className="text-xs font-bold text-indigo-600 hover:text-indigo-700 px-3 py-1.5 bg-indigo-50 rounded-lg">
-                              View Details
-                            </button>
-                          </div>
                         </div>
                       ))}
                     </div>

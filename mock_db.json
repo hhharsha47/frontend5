@@ -60,7 +60,7 @@
     {
       "id": 104,
       "orderReference": "CO-2026-141",
-      "status": "quote_sent",
+      "status": "quote_accepted",
       "questionnaireSent": true,
       "clientName": "Guest",
       "email": "guest@example.com",
@@ -69,7 +69,8 @@
       "submittedAt": "2026-01-12T04:58:13.126Z",
       "questionnaireCompleted": true,
       "quoteSent": true,
-      "latestQuoteId": 7
+      "latestQuoteId": 7,
+      "paymentPending": true
     },
     {
       "id": 105,
@@ -88,14 +89,32 @@
     {
       "id": 106,
       "orderReference": "CO-2026-469",
-      "status": "questionnaire_sent",
+      "status": "quote_sent",
       "questionnaireSent": true,
       "clientName": "Guest",
       "email": "guest@example.com",
       "subject": "Auto-Created Order",
       "description": "...",
       "submittedAt": "2026-01-12T05:22:36.115Z",
-      "questionnaireCompleted": false
+      "questionnaireCompleted": false,
+      "quoteSent": true,
+      "latestQuoteId": 10,
+      "paymentPending": true
+    },
+    {
+      "id": 107,
+      "orderReference": "CO-2026-678",
+      "status": "quote_accepted",
+      "questionnaireSent": true,
+      "clientName": "Guest",
+      "email": "guest@example.com",
+      "subject": "Auto-Created Order",
+      "description": "...",
+      "submittedAt": "2026-01-12T13:03:58.870Z",
+      "questionnaireCompleted": true,
+      "quoteSent": true,
+      "latestQuoteId": 11,
+      "paymentPending": true
     }
   ],
   "questionnaires": [
@@ -249,6 +268,44 @@
         }
       ],
       "createdAt": "2026-01-12T05:22:36.119Z"
+    },
+    {
+      "id": 8,
+      "customOrderId": 107,
+      "orderReference": "CO-2026-678",
+      "title": "Additional Information Needed",
+      "description": "Please provide the following details so we can finalize your quote.",
+      "questions": [
+        {
+          "id": "1",
+          "text": "eqwe",
+          "type": "text",
+          "required": true,
+          "options": []
+        }
+      ],
+      "createdAt": "2026-01-12T13:03:58.870Z",
+      "responses": {
+        "1": "ewqe"
+      },
+      "respondedAt": "2026-01-12T13:04:12.457Z"
+    },
+    {
+      "id": 9,
+      "customOrderId": 107,
+      "orderReference": "CO-2026-678",
+      "title": "Additional Information Needed",
+      "description": "Please provide the following details so we can finalize your quote.",
+      "questions": [
+        {
+          "id": "1",
+          "text": "asd",
+          "type": "text",
+          "required": true,
+          "options": []
+        }
+      ],
+      "createdAt": "2026-01-12T13:09:51.255Z"
     }
   ],
   "quotes": [
@@ -288,7 +345,7 @@
       "id": 3,
       "orderReference": "CO-2026-141",
       "version": 1,
-      "status": "sent",
+      "status": "superseded",
       "amount": 500,
       "currency": "USD",
       "timeline": "14 Days",
@@ -303,7 +360,7 @@
       "id": 4,
       "orderReference": "CO-2026-141",
       "version": 2,
-      "status": "sent",
+      "status": "superseded",
       "amount": 7511,
       "currency": "USD",
       "timeline": "14 Days",
@@ -318,7 +375,7 @@
       "id": 5,
       "orderReference": "CO-2026-141",
       "version": 3,
-      "status": "sent",
+      "status": "superseded",
       "amount": 110,
       "currency": "USD",
       "timeline": "14 Days",
@@ -349,7 +406,7 @@
       "id": 7,
       "orderReference": "CO-2026-141",
       "version": 4,
-      "status": "sent",
+      "status": "accepted",
       "amount": 33,
       "currency": "USD",
       "timeline": "14 Days",
@@ -358,7 +415,71 @@
         "asd"
       ],
       "terms": "50% advance payment required to start work.\nRemaining 50% before shipping.\nShipping costs calculated separately.",
-      "createdAt": "2026-01-12T05:12:32.614Z"
+      "createdAt": "2026-01-12T05:12:32.614Z",
+      "acceptedAt": "2026-01-12T13:02:45.512Z"
+    },
+    {
+      "id": 8,
+      "orderReference": "CO-2026-678",
+      "version": 1,
+      "status": "rejected",
+      "amount": 3510,
+      "currency": "USD",
+      "timeline": "14 Days",
+      "validUntil": "2026-01-19",
+      "scopeOfWork": [
+        "ABOATTTT"
+      ],
+      "terms": "50% advance payment required to start work.\nRemaining 50% before shipping.\nShipping costs calculated separately.",
+      "createdAt": "2026-01-12T13:04:48.984Z",
+      "rejectionReason": "can u make it 3000?\n"
+    },
+    {
+      "id": 9,
+      "orderReference": "CO-2026-469",
+      "version": 1,
+      "status": "accepted",
+      "amount": 3500,
+      "currency": "USD",
+      "timeline": "14 Days",
+      "validUntil": "2026-01-19",
+      "scopeOfWork": [
+        "Pre-payment"
+      ],
+      "terms": "50% advance payment required to start work.\nRemaining 50% before shipping.\nShipping costs calculated separately.",
+      "createdAt": "2026-01-12T13:15:48.991Z",
+      "acceptedAt": "2026-01-12T13:16:23.106Z"
+    },
+    {
+      "id": 10,
+      "orderReference": "CO-2026-469",
+      "version": 2,
+      "status": "sent",
+      "amount": 10,
+      "currency": "USD",
+      "timeline": "14 Days",
+      "validUntil": "2026-01-19",
+      "scopeOfWork": [
+        "asd"
+      ],
+      "terms": "50% advance payment required to start work.\nRemaining 50% before shipping.\nShipping costs calculated separately.",
+      "createdAt": "2026-01-12T13:16:56.585Z"
+    },
+    {
+      "id": 11,
+      "orderReference": "CO-2026-678",
+      "version": 2,
+      "status": "accepted",
+      "amount": 30,
+      "currency": "USD",
+      "timeline": "14 Days",
+      "validUntil": "2026-01-19",
+      "scopeOfWork": [
+        "w"
+      ],
+      "terms": "50% advance payment required to start work.\nRemaining 50% before shipping.\nShipping costs calculated separately.",
+      "createdAt": "2026-01-12T13:27:10.313Z",
+      "acceptedAt": "2026-01-12T13:27:31.686Z"
     }
   ]
 }

@@ -386,6 +386,8 @@ function ProfileContent() {
               statusLabel = "Action Required";
             else if (o.status === "pending_admin_review")
               statusLabel = "Pending Approval";
+            else if (o.status === "quote_revision_requested")
+              statusLabel = "Pending Approval"; // Or "Revision Requested"
 
             return {
               id: o.orderReference || o.id,
@@ -404,6 +406,8 @@ function ProfileContent() {
                   ? 50
                   : statusLabel === "Action Required"
                   ? 30
+                  : o.status === "quote_revision_requested"
+                  ? 40 // Retract progress slightly to show negotiation
                   : 20,
               image: displayImage,
               steps: [
@@ -548,9 +552,9 @@ function ProfileContent() {
       if (q) {
         setActiveQuestionnaire(q);
       } else {
-        toast.error(
-          `Could not load details for order ${request.id}. Please try again.`
-        );
+        console.warn(`Questionnaire not found for order ${request.id}`);
+        // Do not show error to user, just fail silently or maybe trigger a refresh
+        // toast.error(`Could not load details for order ${request.id}. Please try again.`);
       }
     } catch (e) {
       console.error(e);
