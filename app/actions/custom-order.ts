@@ -462,6 +462,18 @@ export async function syncOrderUpdates(orderIds: string[]) {
             } else {
                 updateData.questionnaireStatus = "sent";
             }
+        } else {
+            // Self-Healing: If status implies questionnaire exists but none found, fix status.
+            if (o.status === 'questionnaire_sent' || o.questionnaireSent) {
+                o.status = 'pending_admin_review';
+                o.questionnaireSent = false;
+                updateData.status = 'pending_admin_review';
+                updateData.questionnaireSent = false;
+                
+                // Persist the fix
+                saveData(db);
+                console.log(`[Self-Heal] Fixed orphan status for order ${id}`);
+            }
         }
 
         // Check Quotes
