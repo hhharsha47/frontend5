@@ -8,10 +8,63 @@ import path from "path";
 const DB_PATH = path.join(process.cwd(), "mock_db.json");
 
 // DATA INTERFACE
+interface ActivityLogItem {
+    id: number;
+    action: string;
+    user: string;
+    detail: string;
+    amount?: string;
+    timestamp: string;
+    initials: string;
+    color: string;
+}
+
 interface MockDB {
     orders: any[];
     questionnaires: any[];
     quotes: any[];
+    queries: any[]; // Missing from initial interface but likely implicit or unused
+    activityLog: ActivityLogItem[];
+    // Gallery support
+    gallery: { [orderId: string]: GalleryImage[] };
+    designs: Design[];
+    shipments: Shipment[];
+    reviews: Review[];
+}
+
+interface Design {
+    id: string;
+    orderId: string;
+    version: number;
+    images: { url: string; note: string }[];
+    notes: string;
+    status: 'pending_approval' | 'approved' | 'changes_requested';
+    feedback?: string;
+    createdAt: string;
+    approvedAt?: string;
+}
+
+interface GalleryImage {
+    id: string;
+    url: string;
+    caption: string;
+    uploadedAt: string;
+}
+
+interface Shipment {
+    orderId: string;
+    trackingNumber: string;
+    carrier: string;
+    shippedAt: string;
+    deliveredAt?: string;
+}
+
+interface Review {
+    id: string;
+    orderId: string;
+    rating: number;
+    comment: string;
+    submittedAt: string;
 }
 
 // LOAD DATA helper
@@ -70,7 +123,13 @@ function loadData(): MockDB {
           },
         ],
         questionnaires: [],
-        quotes: []
+        quotes: [],
+        activityLog: [],
+        designs: [],
+        gallery: {},
+        queries: [],
+        shipments: [],
+        reviews: []
     };
 }
 
@@ -90,9 +149,38 @@ function saveData(data: MockDB) {
     }
 }
 
-// Initialize In-Memory access (will refresh on file change/reload if needed, but here we load on access mostly or simpler)
-// For simplicity in this "use server" context, we'll load on every write, and maybe read.
-// Better: Load at start of action, save at end.
+// HELPER: Log Activity
+function logActivity(db: MockDB, action: string, user: string, detail: string, amount: string = "-", color: string = "bg-slate-100 text-slate-700") {
+    if (!db.activityLog) db.activityLog = [];
+    
+    // Create new log item
+    const newItem: ActivityLogItem = {
+        id: Date.now(),
+        action,
+        user,
+        detail,
+        amount,
+        timestamp: new Date().toISOString(),
+        initials: user.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+        color
+    };
+    
+    // Add to beginning of array
+    db.activityLog.unshift(newItem);
+    
+    // Keep only last 50 items
+    if (db.activityLog.length > 50) {
+        db.activityLog = db.activityLog.slice(0, 50);
+    }
+    
+    return db;
+}
+
+// Fetch Activity Log
+export async function getRecentActivity() {
+    const db = loadData();
+    return db.activityLog || [];
+}
 
 export async function getCustomOrderDetails(id: string) {
   const db = loadData();
@@ -214,6 +302,16 @@ export async function submitQuestionnaireResponse(questionnaireId: number, respo
         if (oIndex !== -1) {
             db.orders[oIndex].status = "questionnaire_completed";
             db.orders[oIndex].questionnaireCompleted = true;
+
+            // Log Activity
+            logActivity(
+                db, 
+                "Questionnaire Received", 
+                db.orders[oIndex].clientName || "Guest User", 
+                `completed questionnaire for ${db.orders[oIndex].orderReference}`,
+                "-",
+                "bg-blue-100 text-blue-700"
+            );
         }
     }
     
@@ -318,6 +416,16 @@ export async function acceptQuote(quoteId: number) {
     if (oIndex !== -1) {
         db.orders[oIndex].status = "quote_accepted";
         db.orders[oIndex].paymentPending = true;
+
+        // Log Activity
+        logActivity(
+            db,
+            "Quote Accepted",
+            db.orders[oIndex].clientName || "Guest User",
+            `accepted quote #${quoteId} for ${db.quotes[qIndex].currency} ${db.quotes[qIndex].amount}`,
+            "Pending Payment",
+            "bg-green-100 text-green-700"
+        );
     }
 
     saveData(db);
@@ -340,6 +448,16 @@ export async function rejectQuote(quoteId: number, reason: string) {
     const oIndex = db.orders.findIndex(o => o.orderReference === orderRef || o.id === orderRef);
     if (oIndex !== -1) {
         db.orders[oIndex].status = "quote_revision_requested";
+
+        // Log Activity
+        logActivity(
+            db,
+            "Quote Rejected",
+            db.orders[oIndex].clientName || "Guest User",
+            `requested changes: "${reason}"`,
+            "Revision Needed",
+            "bg-red-100 text-red-700"
+        );
     }
 
     saveData(db);
@@ -422,6 +540,16 @@ export async function processPayment(orderId: string, paymentMethod: string) {
         order.status = "processing"; // Move to production phase
         order.paymentPending = false;
 
+        // Log Activity
+        logActivity(
+            db,
+            "Payment Received",
+            order.clientName || "Guest User",
+            `paid ${order.invoice.total.toFixed(2)} via ${paymentMethod}`,
+            `$${order.invoice.total.toFixed(2)}`,
+            "bg-emerald-100 text-emerald-700"
+        );
+
         db.orders[orderIndex] = order;
 
         await saveData(db);
@@ -474,4 +602,274 @@ export async function syncOrderUpdates(orderIds: string[]) {
     }
     
     return updates;
+}
+
+// --- Phase 5: WIP Gallery ---
+
+export async function uploadGalleryImage(orderId: string, url: string, caption: string) {
+    const db = loadData();
+    if (!db.gallery) db.gallery = {};
+    if (!db.gallery[orderId]) db.gallery[orderId] = [];
+
+    const newImage: GalleryImage = {
+        id: Date.now().toString(),
+        url,
+        caption,
+        uploadedAt: new Date().toISOString()
+    };
+
+    db.gallery[orderId].unshift(newImage); // Add to top
+    
+    // Log Activity
+    logActivity(
+        db,
+        "Production Update",
+        "Admin", 
+        `uploaded a new WIP photo: "${caption}"`,
+        "-",
+        "bg-purple-100 text-purple-700"
+    );
+
+    saveData(db);
+    revalidatePath(`/admin/custom-orders/${orderId}`);
+    revalidatePath(`/profile`);
+    return { success: true, image: newImage };
+}
+
+export async function getProjectGallery(orderId: string) {
+    const db = loadData();
+    if (!db.gallery || !db.gallery[orderId]) return [];
+    return db.gallery[orderId];
+    return db.gallery[orderId];
+}
+
+// --- Phase 6: Design & Approval ---
+
+export async function uploadDesign(orderId: string, images: { url: string; note: string }[], notes: string) {
+    const db = loadData();
+    if (!db.designs) db.designs = [];
+
+    // Calculate Version
+    const existingDesigns = db.designs.filter(d => d.orderId === orderId);
+    const version = existingDesigns.length + 1;
+
+    const newDesign: Design = {
+        id: Date.now().toString(),
+        orderId,
+        version,
+        images, // Array of { url, note }
+        notes,
+        status: 'pending_approval',
+        createdAt: new Date().toISOString()
+    };
+
+    db.designs.push(newDesign);
+
+    // Update Order Status
+    const orderIndex = db.orders.findIndex(o => o.orderReference === orderId || o.id.toString() === orderId);
+    if (orderIndex !== -1) {
+        db.orders[orderIndex].status = "design_uploaded";
+        // Log Activity
+        logActivity(
+            db,
+            "Design Uploaded",
+            "Admin",
+            `uploaded Design V${version}`,
+            "-",
+            "bg-blue-100 text-blue-700"
+        );
+    }
+
+    saveData(db);
+    revalidatePath(`/admin/custom-orders/${orderId}`);
+    revalidatePath(`/profile`);
+    return { success: true, design: newDesign };
+}
+
+export async function approveDesign(designId: string) {
+    const db = loadData();
+    if (!db.designs) return { success: false, error: "No designs found" };
+
+    const designIndex = db.designs.findIndex(d => d.id === designId);
+    if (designIndex === -1) return { success: false, error: "Design not found" };
+
+    // Update Design Status
+    db.designs[designIndex].status = "approved";
+    db.designs[designIndex].approvedAt = new Date().toISOString();
+
+    // Update Order Status
+    const orderId = db.designs[designIndex].orderId;
+    const orderIndex = db.orders.findIndex(o => o.orderReference === orderId || o.id.toString() === orderId);
+    
+    if (orderIndex !== -1) {
+        db.orders[orderIndex].status = "design_approved";
+        // Unlock next phase triggers here if needed
+        logActivity(
+            db,
+            "Design Approved",
+            db.orders[orderIndex].clientName || "User",
+            `approved Design V${db.designs[designIndex].version}`,
+            "-",
+            "bg-green-100 text-green-700"
+        );
+    }
+
+    saveData(db);
+    revalidatePath(`/admin/custom-orders/${orderId}`);
+    revalidatePath(`/profile`);
+    return { success: true };
+}
+
+export async function requestDesignChanges(designId: string, feedback: string) {
+    const db = loadData();
+    if (!db.designs) return { success: false, error: "No designs found" };
+
+    const designIndex = db.designs.findIndex(d => d.id === designId);
+    if (designIndex === -1) return { success: false, error: "Design not found" };
+
+    // Update Design Status
+    db.designs[designIndex].status = "changes_requested";
+    db.designs[designIndex].feedback = feedback;
+
+    // Update Order Status
+    const orderId = db.designs[designIndex].orderId;
+    const orderIndex = db.orders.findIndex(o => o.orderReference === orderId || o.id.toString() === orderId);
+    
+    if (orderIndex !== -1) {
+        db.orders[orderIndex].status = "design_changes_requested";
+        logActivity(
+            db,
+            "Changes Requested",
+            db.orders[orderIndex].clientName || "User",
+            `requested changes on V${db.designs[designIndex].version}`,
+            "-",
+            "bg-orange-100 text-orange-700"
+        );
+    }
+
+    saveData(db);
+    revalidatePath(`/admin/custom-orders/${orderId}`);
+    revalidatePath(`/profile`);
+    return { success: true };
+}
+
+export async function getDesigns(orderId: string) {
+    const db = loadData();
+    if (!db.designs) return [];
+    // Return sorted by version desc
+    return db.designs.filter(d => d.orderId === orderId).sort((a,b) => b.version - a.version);
+}
+
+// --- Phase 6: Delivery & Reviews ---
+
+export async function markAsShipped(orderId: string, trackingNumber: string, carrier: string) {
+    const db = loadData();
+    if (!db.shipments) db.shipments = [];
+
+    // Check if order exists
+    const orderIndex = db.orders.findIndex(o => o.orderReference === orderId || o.id.toString() === orderId);
+    if (orderIndex === -1) return { success: false, error: "Order not found" };
+
+    // Create Shipment Record
+    const newShipment: Shipment = {
+        orderId,
+        trackingNumber,
+        carrier,
+        shippedAt: new Date().toISOString()
+    };
+    db.shipments.push(newShipment);
+
+    // Update Order Status
+    db.orders[orderIndex].status = "shipped";
+    
+    // Log Activity
+    logActivity(
+        db,
+        "Order Shipped",
+        "Admin",
+        `shipped via ${carrier} (Tracking: ${trackingNumber})`,
+        "-",
+        "bg-indigo-100 text-indigo-700"
+    );
+
+    saveData(db);
+    revalidatePath(`/admin/custom-orders/${orderId}`);
+    revalidatePath(`/profile`);
+    return { success: true };
+}
+
+export async function markAsDelivered(orderId: string) {
+    const db = loadData();
+    
+    // Find Shipment
+    const shipmentIndex = db.shipments ? db.shipments.findIndex(s => s.orderId === orderId) : -1;
+    if (shipmentIndex !== -1) {
+        db.shipments[shipmentIndex].deliveredAt = new Date().toISOString();
+    }
+
+    // Update Order Status
+    const orderIndex = db.orders.findIndex(o => o.orderReference === orderId || o.id.toString() === orderId);
+    if (orderIndex !== -1) {
+        db.orders[orderIndex].status = "delivered";
+        
+        logActivity(
+            db,
+            "Delivered",
+            "System",
+            `marked as delivered`,
+            "-",
+            "bg-teal-100 text-teal-700"
+        );
+    }
+
+    saveData(db);
+    revalidatePath(`/admin/custom-orders/${orderId}`);
+    revalidatePath(`/profile`);
+    return { success: true };
+}
+
+export async function submitReview(orderId: string, rating: number, comment: string) {
+    const db = loadData();
+    if (!db.reviews) db.reviews = [];
+
+    const newReview: Review = {
+        id: Date.now().toString(),
+        orderId,
+        rating,
+        comment,
+        submittedAt: new Date().toISOString()
+    };
+    db.reviews.push(newReview);
+
+    // Update Status to Completed
+    const orderIndex = db.orders.findIndex(o => o.orderReference === orderId || o.id.toString() === orderId);
+    if (orderIndex !== -1) {
+        db.orders[orderIndex].status = "completed";
+        
+        logActivity(
+            db,
+            "Review Submitted",
+            db.orders[orderIndex].clientName || "User",
+            `rated ${rating}/5 stars`,
+            "-",
+            "bg-yellow-100 text-yellow-700"
+        );
+    }
+
+    saveData(db);
+    revalidatePath(`/profile`);
+    revalidatePath(`/admin/custom-orders/${orderId}`);
+    return { success: true };
+}
+
+export async function getShipmentDetails(orderId: string) {
+    const db = loadData();
+    if (!db.shipments) return null;
+    return db.shipments.find(s => s.orderId === orderId) || null;
+}
+
+export async function getReview(orderId: string) {
+    const db = loadData();
+    if (!db.reviews) return null;
+    return db.reviews.find(r => r.orderId === orderId) || null;
 }

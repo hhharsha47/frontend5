@@ -27,6 +27,7 @@ import {
   FileText,
   AlertTriangle,
   RefreshCw,
+  Palette,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -41,7 +42,11 @@ import {
   getPendingQuestionnaire,
   getQuotesForOrder,
   syncOrderUpdates,
+  getDesigns,
+  approveDesign,
+  requestDesignChanges,
 } from "@/app/actions/custom-order";
+import ProjectGallery from "@/components/custom-order/ProjectGallery";
 
 // Mock Data Types
 type OrderStatus = "Processing" | "Shipped" | "Delivered" | "Cancelled";
@@ -120,6 +125,11 @@ function ProfileContent() {
   const [activeQuestionnaire, setActiveQuestionnaire] = useState<any | null>(
     null
   );
+  // Phase 6: Design Review State
+  const [designs, setDesigns] = useState<any[]>([]);
+  const [designFeedback, setDesignFeedback] = useState("");
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRequestingChanges, setIsRequestingChanges] = useState(false);
 
   const [replyInput, setReplyInput] = useState("");
 
@@ -471,6 +481,55 @@ function ProfileContent() {
       window.removeEventListener("storage", loadCustomOrders);
     };
   }, []);
+
+  // Fetch Designs when Request is selected
+  useEffect(() => {
+    if (selectedRequest?.id) {
+      getDesigns(selectedRequest.id).then((res) => setDesigns(res || []));
+    }
+  }, [selectedRequest?.id]);
+
+  const handleApproveDesign = async (designId: string) => {
+    if (!selectedRequest) return;
+    setIsApproving(true);
+    try {
+      const res = await approveDesign(designId);
+      if (res.success) {
+        toast.success("Design approved! Production will start soon.");
+        // Refresh
+        const updated = await getDesigns(selectedRequest.id);
+        setDesigns(updated || []);
+        // Also update local request status if needed
+      } else {
+        toast.error("Failed to approve design");
+      }
+    } catch (e) {
+      toast.error("Error approving design");
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const handleRequestChanges = async (designId: string) => {
+    if (!selectedRequest || !designFeedback.trim()) return;
+    setIsRequestingChanges(true);
+    try {
+      const res = await requestDesignChanges(designId, designFeedback);
+      if (res.success) {
+        toast.success("Feedback sent to design team.");
+        setDesignFeedback("");
+        // Refresh
+        const updated = await getDesigns(selectedRequest.id);
+        setDesigns(updated || []);
+      } else {
+        toast.error("Failed to submit feedback");
+      }
+    } catch (e) {
+      toast.error("Error submitting feedback");
+    } finally {
+      setIsRequestingChanges(false);
+    }
+  };
 
   const wishlist = [
     {
@@ -1515,6 +1574,124 @@ function ProfileContent() {
                     </p>
                   </div>
                 </div>
+
+                {/* Design Review Section */}
+                {designs && designs.length > 0 && (
+                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                      <h4 className="font-bold text-slate-900 flex items-center gap-2">
+                        <Palette className="w-5 h-5 text-indigo-600" />
+                        Design Approval
+                      </h4>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                          designs[0].status === "approved"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : designs[0].status === "changes_requested"
+                            ? "bg-orange-100 text-orange-700"
+                            : "bg-blue-100 text-blue-700"
+                        }`}
+                      >
+                        v{designs[0].version} -{" "}
+                        {designs[0].status.replace("_", " ")}
+                      </span>
+                    </div>
+
+                    <div className="p-6 space-y-6">
+                      {/* Design Images */}
+                      <div className="grid grid-cols-2 gap-4">
+                        {designs[0].images.map((img: any, i: number) => (
+                          <div
+                            key={i}
+                            className="group relative aspect-video bg-slate-100 rounded-lg overflow-hidden border border-slate-200"
+                          >
+                            <img
+                              src={img.url}
+                              className="w-full h-full object-cover"
+                              alt="Design"
+                            />
+                            <a
+                              href={img.url}
+                              target="_blank"
+                              className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity font-bold text-xs"
+                            >
+                              Click to View Full Size
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Notes */}
+                      {designs[0].notes && (
+                        <div className="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm">
+                          <span className="font-bold block mb-1">
+                            Designer Notes:
+                          </span>
+                          {designs[0].notes}
+                        </div>
+                      )}
+
+                      {/* Actions (Only if Pending) */}
+                      {designs[0].status === "pending_approval" && (
+                        <div className="space-y-4 pt-4 border-t border-slate-100">
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => handleApproveDesign(designs[0].id)}
+                              disabled={isApproving}
+                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-bold shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                              {isApproving ? (
+                                <span className="animate-spin">⌛</span>
+                              ) : (
+                                <CheckCircle className="w-5 h-5" />
+                              )}
+                              Approve Design
+                            </button>
+                          </div>
+
+                          <div className="flex gap-2 items-start mt-4">
+                            <textarea
+                              value={designFeedback}
+                              onChange={(e) =>
+                                setDesignFeedback(e.target.value)
+                              }
+                              placeholder="Describe changes needed (e.g., 'Make the logo larger')..."
+                              className="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                              rows={2}
+                            />
+                            <button
+                              onClick={() =>
+                                handleRequestChanges(designs[0].id)
+                              }
+                              disabled={
+                                !designFeedback.trim() || isRequestingChanges
+                              }
+                              className="px-4 py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+                            >
+                              {isRequestingChanges ? "..." : "Request Changes"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {designs[0].status === "changes_requested" && (
+                        <div className="text-center py-4 text-slate-500 text-sm italic">
+                          You have requested changes. We are working on a new
+                          version.
+                        </div>
+                      )}
+                      {designs[0].status === "approved" && (
+                        <div className="text-center py-4 text-emerald-600 font-bold flex items-center justify-center gap-2">
+                          <CheckCircle className="w-5 h-5" />
+                          Design Approved - Proceeding to Production
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Production Gallery */}
+                <ProjectGallery orderId={selectedRequest.id} />
 
                 {/* Conversation Section */}
                 {selectedRequest.aiConversation &&

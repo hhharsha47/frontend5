@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -21,6 +21,9 @@ import {
   MessageSquare,
   Receipt,
   Plus,
+  Upload,
+  Palette,
+  Layers,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -28,10 +31,18 @@ import QuestionnaireBuilder from "@/components/admin/QuestionnaireBuilder";
 import QuoteBuilder from "@/components/admin/QuoteBuilder";
 import { toast } from "sonner";
 import {
-  getOrderQuestionnaires,
+  uploadGalleryImage,
+  getProjectGallery,
+  markAsShipped,
+  uploadDesign,
+  getDesigns,
   getQuotesForOrder,
   generateInvoice,
+  getOrderQuestionnaires,
 } from "@/app/actions/custom-order";
+
+// ... (existing imports, add these)
+// import { ... Palette, Layers } from "lucide-react"; (handled below if needed, or assume Lucide has defaults)
 
 // Mock Data (in a real app, this would be fetched based on ID)
 const MOCK_ORDER_DETAILS = {
@@ -91,6 +102,22 @@ export default function OrderDetailPage() {
   const [loadingQuestionnaires, setLoadingQuestionnaires] = useState(false);
   const [showQuoteBuilder, setShowQuoteBuilder] = useState(false);
   const [quotes, setQuotes] = useState<any[]>([]);
+
+  // Gallery State (Add if missing or ensure it's here)
+  const [galleryImages, setGalleryImages] = useState<any[]>([]);
+  const [isUploadingGallery, setIsUploadingGallery] = useState(false);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  // Shipment State
+  const [isShipModalOpen, setIsShipModalOpen] = useState(false);
+  const [trackingNumber, setTrackingNumber] = useState("");
+  const [carrier, setCarrier] = useState("Shiprocket");
+
+  // Phase 6: Design Studio State
+  const [designs, setDesigns] = useState<any[]>([]);
+  const [designNotes, setDesignNotes] = useState("");
+  const [isUploadingDesign, setIsUploadingDesign] = useState(false);
+  const designInputRef = useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     const findOrder = () => {
@@ -174,6 +201,49 @@ export default function OrderDetailPage() {
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [queryMessage, setQueryMessage] = useState("");
   const [isSubmittingQuery, setIsSubmittingQuery] = useState(false);
+
+  useEffect(() => {
+    // Fetch Gallery
+    if (order?.id) {
+      getProjectGallery(order.id.toString()).then((imgs) =>
+        setGalleryImages(imgs || [])
+      );
+    }
+  }, [order?.id]);
+
+  const handleGalleryUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingGallery(true);
+
+    // Mock upload: Read as Data URL (In real app, upload to S3/Cloudinary)
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const url = reader.result as string;
+      // Prompt for caption
+      const caption = window.prompt(
+        "Add a caption for this progress photo:",
+        "Manufacturing Update"
+      );
+
+      if (caption) {
+        const res = await uploadGalleryImage(order.id.toString(), url, caption);
+        if (res.success) {
+          toast.success("Progress photo uploaded!");
+          setGalleryImages((prev) => [res.image, ...prev]);
+        } else {
+          toast.error("Failed to upload photo");
+        }
+      }
+      setIsUploadingGallery(false);
+      // Reset input
+      if (galleryInputRef.current) galleryInputRef.current.value = "";
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleStatusUpdate = (newStatus: string) => {
     // 1. Update local state
@@ -262,6 +332,54 @@ export default function OrderDetailPage() {
     }
   };
 
+  // Handle Design Upload (Phase 6)
+  const handleDesignUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    setIsUploadingDesign(true);
+
+    // Handle multiple files
+    const files = Array.from(e.target.files);
+    const images = files.map((f) => ({
+      url: URL.createObjectURL(f),
+      note: f.name,
+    }));
+
+    try {
+      // @ts-ignore - params.id is valid
+      const res = await uploadDesign(
+        params.id as string,
+        images,
+        designNotes || "Initial Design Draft"
+      );
+      if (res.success && res.design) {
+        setDesigns([res.design, ...designs]);
+        setDesignNotes(""); // Reset notes
+        toast.success(`Design Version ${res.design.version} uploaded!`);
+      }
+    } catch (error) {
+      toast.error("Failed to upload design");
+    } finally {
+      setIsUploadingDesign(false);
+    }
+  };
+
+  const handleShipOrder = async () => {
+    if (!trackingNumber) return toast.error("Tracking number is required");
+
+    const res = await markAsShipped(
+      order.id.toString(),
+      trackingNumber,
+      carrier
+    );
+    if (res.success) {
+      toast.success("Order marked as shipped!");
+      handleStatusUpdate("shipped");
+      setIsShipModalOpen(false);
+    } else {
+      toast.error("Failed to update status");
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20">
       {/* Questionnaire Builder Modal Integration */}
@@ -347,6 +465,18 @@ export default function OrderDetailPage() {
               >
                 <List className="w-4 h-4" />
                 Request Details
+              </button>
+            )}
+
+            {/* Phase 6: Ship Order Button */}
+            {(order.status === "in_production" ||
+              order.status === "ready_to_ship") && (
+              <button
+                onClick={() => setIsShipModalOpen(true)}
+                className="px-5 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all flex items-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                Ship Order
               </button>
             )}
 
@@ -981,18 +1111,45 @@ export default function OrderDetailPage() {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex flex-col items-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                               {quote.status === "accepted" &&
                                 !order.invoice && (
                                   <button
                                     onClick={() => handleGenerateInvoice(quote)}
-                                    // ...
-                                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1"
                                     title="Generate Invoice"
                                   >
+                                    <span className="text-xs font-bold uppercase tracking-wider">
+                                      Generate Invoice
+                                    </span>
                                     <FileText className="w-4 h-4" />
                                   </button>
                                 )}
+
+                              {/* Invoice Status Display */}
+                              {quote.status === "accepted" && order.invoice && (
+                                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
+                                  <div className="w-8 h-8 rounded-full bg-white border border-slate-100 flex items-center justify-center text-emerald-600 shadow-sm">
+                                    <Receipt className="w-4 h-4" />
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                                      Invoice #{order.invoice.id}
+                                    </p>
+                                    <p
+                                      className={`text-xs font-bold ${
+                                        order.invoice.status === "paid"
+                                          ? "text-emerald-600"
+                                          : "text-amber-600"
+                                      }`}
+                                    >
+                                      {order.invoice.status === "paid"
+                                        ? "PAID"
+                                        : "Payment Pending"}
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -1026,6 +1183,205 @@ export default function OrderDetailPage() {
                         </p>
                       </div>
                     )
+                  )}
+                </div>
+
+                {/* --- Phase 6: Design Studio (New) --- */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-8 space-y-6 shadow-sm mt-8 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Palette className="w-24 h-24 text-indigo-600 rotate-12" />
+                  </div>
+
+                  <div className="flex items-center justify-between relative z-10">
+                    <div>
+                      <h3 className="font-bold text-slate-900 flex items-center gap-2 text-lg">
+                        <Palette className="w-5 h-5 text-indigo-600" />
+                        Design Studio
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Upload design drafts and manage approval versions
+                      </p>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*,.pdf"
+                        className="hidden"
+                        ref={designInputRef}
+                        onChange={handleDesignUpload}
+                      />
+                      <button
+                        onClick={() => designInputRef.current?.click()}
+                        disabled={isUploadingDesign}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center gap-2 text-sm disabled:opacity-50"
+                      >
+                        {isUploadingDesign ? (
+                          <>Uploading...</>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4" />
+                            Upload Design
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {designs.length > 0 ? (
+                    <div className="space-y-6">
+                      {/* Current Version */}
+                      <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-5">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h4 className="font-bold text-indigo-900 text-sm flex items-center gap-2">
+                              LATEST VERSION (v{designs[0].version})
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${
+                                  designs[0].status === "approved"
+                                    ? "bg-emerald-100 text-emerald-700"
+                                    : designs[0].status === "changes_requested"
+                                    ? "bg-orange-100 text-orange-700"
+                                    : "bg-blue-100 text-blue-700"
+                                }`}
+                              >
+                                {designs[0].status.replace("_", " ")}
+                              </span>
+                            </h4>
+                            <p className="text-xs text-indigo-700 mt-1">
+                              {designs[0].notes}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-bold text-indigo-400">
+                            {new Date(
+                              designs[0].createdAt
+                            ).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                          {designs[0].images.map((img: any, i: number) => (
+                            <div
+                              key={i}
+                              className="w-32 h-32 shrink-0 rounded-lg overflow-hidden border border-indigo-200 bg-white relative group/img"
+                            >
+                              <img
+                                src={img.url}
+                                alt="Design"
+                                className="w-full h-full object-cover"
+                              />
+                              <a
+                                href={img.url}
+                                target="_blank"
+                                className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity text-white"
+                              >
+                                <Download className="w-6 h-6" />
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Feedback Display */}
+                        {designs[0].status === "changes_requested" && (
+                          <div className="mt-4 bg-orange-50 border border-orange-100 p-3 rounded-lg text-xs text-orange-800 flex gap-2">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                            <div>
+                              <span className="font-bold block mb-1">
+                                CUSTOMER FEEDBACK:
+                              </span>
+                              "{designs[0].feedback}"
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* TODO: Previous Versions Accordion */}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                      <Layers className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                      <p className="text-slate-500 font-medium text-sm">
+                        No designs uploaded yet
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Upload sketches or renders to start the approval
+                        process.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* --- Phase 7: Production Gallery Section (Refined) --- */}
+                <div className="bg-linear-to-br from-white to-slate-50 border border-slate-200 rounded-2xl p-8 space-y-6 shadow-sm mt-8 relative overflow-hidden group hover:border-purple-200 transition-colors">
+                  <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <ImageIcon className="w-32 h-32 text-purple-600 -rotate-12" />
+                  </div>
+
+                  <div className="flex items-center justify-between relative z-10">
+                    <div>
+                      <h3 className="font-bold text-slate-900 flex items-center gap-2 text-lg">
+                        <ImageIcon className="w-5 h-5 text-purple-600" />
+                        Production Gallery (WIP)
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Share progress photos with the customer
+                      </p>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        ref={galleryInputRef}
+                        onChange={handleGalleryUpload}
+                      />
+                      <button
+                        onClick={() => galleryInputRef.current?.click()}
+                        disabled={isUploadingGallery}
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-lg shadow-purple-500/20 transition-all flex items-center gap-2 text-sm disabled:opacity-50"
+                      >
+                        {isUploadingGallery ? (
+                          <>Uploading...</>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4" />
+                            Upload Photo
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {galleryImages.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10">
+                      {galleryImages.map((img) => (
+                        <div
+                          key={img.id}
+                          className="relative group aspect-square rounded-xl overflow-hidden bg-white border border-slate-200 shadow-sm"
+                        >
+                          <img
+                            src={img.url}
+                            alt={img.caption}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          />
+                          <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                            <p className="text-white text-xs font-medium truncate w-full">
+                              {img.caption}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-white/50 rounded-xl border border-dashed border-slate-200 backdrop-blur-sm">
+                      <div className="w-12 h-12 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-3 text-purple-300">
+                        <ImageIcon className="w-6 h-6" />
+                      </div>
+                      <p className="text-slate-500 font-medium text-sm">
+                        No progress photos yet
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Upload images to show detailed manufacturing progress.
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1157,6 +1513,70 @@ export default function OrderDetailPage() {
                     Send Message
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Ship Order Modal */}
+      {isShipModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-display font-bold text-xl text-slate-900">
+                Ship Order
+              </h3>
+              <button
+                onClick={() => setIsShipModalOpen(false)}
+                className="p-2 hover:bg-slate-100 rounded-full text-slate-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                  Tracking Number
+                </label>
+                <input
+                  autoFocus
+                  type="text"
+                  value={trackingNumber}
+                  onChange={(e) => setTrackingNumber(e.target.value)}
+                  placeholder="e.g. TRK-88219022"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold text-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                  Carrier
+                </label>
+                <select
+                  value={carrier}
+                  onChange={(e) => setCarrier(e.target.value)}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold text-slate-900"
+                >
+                  <option value="Shiprocket">Shiprocket</option>
+                  <option value="FedEx">FedEx</option>
+                  <option value="DHL">DHL</option>
+                  <option value="UPS">UPS</option>
+                  <option value="BlueDart">BlueDart</option>
+                </select>
+              </div>
+            </div>
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+              <button
+                onClick={() => setIsShipModalOpen(false)}
+                className="px-4 py-2 font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleShipOrder}
+                disabled={!trackingNumber}
+                className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+              >
+                Confirm Shipment
               </button>
             </div>
           </div>

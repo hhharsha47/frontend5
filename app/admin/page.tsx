@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { useState } from "react";
+import React, { useState } from "react";
+import { getRecentActivity } from "@/app/actions/custom-order";
 
 export default function AdminDashboardPage() {
   const stats = [
@@ -58,66 +59,40 @@ export default function AdminDashboardPage() {
     },
   ];
 
-  // State to hold activity with lazy initialization
-  const [activities] = useState(() => {
-    const initialActivities = [
-      {
-        id: 1,
-        action: "New Order",
-        user: "Michael Chen",
-        detail: "purchased 1/48 F-14 Tomcat",
-        amount: "$129.99",
-        time: "2 hours ago",
-        initials: "MC",
-        color: "bg-blue-100 text-blue-700",
-      },
-      {
-        id: 2,
-        action: "Commission Request",
-        user: "Sarah Johnson",
-        detail: "requested P-51D Mustang Restoration",
-        amount: "Quote Pending",
-        time: "4 hours ago",
-        initials: "SJ",
-        color: "bg-indigo-100 text-indigo-700",
-      },
-      {
-        id: 3,
-        action: "New Review",
-        user: "David Miller",
-        detail: "left a review on 'Modern Jet Fighter'",
-        amount: "⭐⭐⭐⭐⭐",
-        time: "6 hours ago",
-        initials: "DM",
-        color: "bg-green-100 text-green-700",
-      },
-      {
-        id: 4,
-        action: "System Update",
-        user: "System Admin",
-        detail: "Catalog updated with 5 new items",
-        amount: "-",
-        time: "1 day ago",
-        initials: "SA",
-        color: "bg-slate-100 text-slate-700",
-      },
-    ];
+  // State for activity feed
+  const [activities, setActivities] = useState<any[]>([]);
 
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("adminRecentActivity");
-      if (saved) {
-        try {
-          const newActivities = JSON.parse(saved);
-          if (Array.isArray(newActivities)) {
-            return [...newActivities, ...initialActivities];
-          }
-        } catch (e) {
-          console.error("Failed to parse admin activity", e);
+  // Fetch Live Activity Log
+  React.useEffect(() => {
+    const fetchActivity = async () => {
+      try {
+        const logs = await getRecentActivity();
+        if (logs && logs.length > 0) {
+          setActivities(logs);
+        } else {
+          // Fallback for demo if empty
+          setActivities([
+            {
+              id: 999,
+              action: "System Ready",
+              user: "System",
+              detail: "Monitoring active...",
+              time: "Now",
+              initials: "SY",
+              color: "bg-slate-100 text-slate-700",
+            },
+          ]);
         }
+      } catch (e) {
+        console.error("Failed to load activity log", e);
       }
-    }
-    return initialActivities;
-  });
+    };
+    fetchActivity();
+
+    // Optional: Poll every 10s for updates
+    const interval = setInterval(fetchActivity, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleDownloadReport = () => {
     toast.success("Downloading Dashboard Report...");
@@ -234,7 +209,14 @@ export default function AdminDashboardPage() {
                       {item.action}
                     </h4>
                     <span className="w-1 h-1 rounded-full bg-slate-300" />
-                    <span className="text-xs text-slate-400">{item.time}</span>
+                    <span className="text-xs text-slate-400">
+                      {item.timestamp
+                        ? new Date(item.timestamp).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : item.time}
+                    </span>
                   </div>
                   <p className="text-sm text-slate-600 truncate">
                     <span className="font-medium text-slate-900">
@@ -245,7 +227,7 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className="text-right shrink-0">
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                    {item.amount}
+                    {item.amount || "-"}
                   </span>
                 </div>
               </div>
