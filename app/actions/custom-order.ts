@@ -32,7 +32,7 @@ interface MockDB {
     reviews: Review[];
 }
 
-interface Design {
+export interface Design {
     id: string;
     orderId: string;
     version: number;
@@ -44,14 +44,14 @@ interface Design {
     approvedAt?: string;
 }
 
-interface GalleryImage {
+export interface GalleryImage {
     id: string;
     url: string;
     caption: string;
     uploadedAt: string;
 }
 
-interface Shipment {
+export interface Shipment {
     orderId: string;
     trackingNumber: string;
     carrier: string;
@@ -59,7 +59,7 @@ interface Shipment {
     deliveredAt?: string;
 }
 
-interface Review {
+export interface Review {
     id: string;
     orderId: string;
     rating: number;
