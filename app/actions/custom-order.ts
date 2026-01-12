@@ -27,16 +27,17 @@ function loadData(): MockDB {
         } catch (error) {
             console.error(`Error loading mock DB (attempt ${4-retries}):`, error);
             retries--;
-            // Simple synchronous delay loop since we can't use await in sync function easily without changing signature
-            // But this is server action, we can make loadData async? 
-            // Most existing callers call it synchronously. Changing to async would require updating all callers.
-            // For now, simple busy wait or just retry immediately.
             const start = Date.now();
             while (Date.now() - start < 100) {} // 100ms delay
         }
     }
-    // Default initial data if no file or failed reads
-    // Default initial data if no file
+    
+    // If we exhausted retries and the file EXISTS, we must throw to avoid overwriting data with defaults.
+    if (fs.existsSync(DB_PATH)) {
+        throw new Error("Failed to load database after multiple retries. Preventing data overwrite.");
+    }
+
+    // Only return default if file truly does not exist
     return {
         orders: [
           {
@@ -432,4 +433,45 @@ export async function processPayment(orderId: string, paymentMethod: string) {
         console.error("Payment error", e);
         return { success: false, error: "Payment failed" };
     }
+}
+
+export async function syncOrderUpdates(orderIds: string[]) {
+    const db = loadData();
+    const updates: Record<string, any> = {};
+
+    for (const id of orderIds) {
+        // Find order
+        const o = db.orders.find(ord => ord.orderReference === id || ord.id === id);
+        if (!o) continue;
+
+        const updateData: any = {
+            id: id,
+            status: o.status,
+            quote: null,
+            questionnaireStatus: null,
+            questionnaire: null
+        };
+
+        // Check Questionnaire
+        const qIndex = db.questionnaires.findIndex(q => q.orderReference === id || q.customOrderId === id);
+        if (qIndex !== -1) {
+            const q = db.questionnaires[qIndex];
+            updateData.questionnaire = q;
+            if (q.responses && Object.keys(q.responses).length > 0) {
+                updateData.questionnaireStatus = "completed";
+            } else {
+                updateData.questionnaireStatus = "sent";
+            }
+        }
+
+        // Check Quotes
+        const quotes = db.quotes.filter(q => q.orderReference === id || q.customOrderId === id).sort((a,b) => b.id - a.id);
+        if (quotes.length > 0) {
+            updateData.quote = quotes[0];
+        }
+
+        updates[id] = updateData;
+    }
+    
+    return updates;
 }

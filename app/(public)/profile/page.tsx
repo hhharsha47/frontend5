@@ -26,6 +26,7 @@ import {
   HelpCircle,
   FileText,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -39,6 +40,7 @@ import InvoiceViewer from "@/components/custom-order/InvoiceViewer";
 import {
   getPendingQuestionnaire,
   getQuotesForOrder,
+  syncOrderUpdates,
 } from "@/app/actions/custom-order";
 
 // Mock Data Types
@@ -289,61 +291,69 @@ function ProfileContent() {
           let parsed = JSON.parse(stored);
           let hasUpdates = false;
 
-          // SYNC CHECK: Check backend for any pending questionnaires that we missed
-          parsed = await Promise.all(
-            parsed.map(async (o: any) => {
-              // Only checks orders that are seemingly pending review but might have a questionnaire
-              // ALWAYS Check backend for every order to ensure we catch all updates
-              // Remove restrictive status checks
-              if (true) {
-                try {
-                  // Use Order ID or Reference
-                  const q = await getPendingQuestionnaire(
-                    o.orderReference || o.id
-                  );
-                  if (q) {
-                    console.log("Found pending questionnaire for", o.id);
-                    // Check if already completed
-                    if (q.responses && Object.keys(q.responses).length > 0) {
-                      o.status = "questionnaire_completed";
-                      o.questionnaireCompleted = true;
-                      o.questionnaireSent = true;
-                    } else {
-                      o.status = "questionnaire_sent";
-                      o.questionnaireSent = true;
-                      o.questionnaireCompleted = false;
-                      o.questionnaireCompleted = false;
-                    }
-                    hasUpdates = true;
-                  }
+          // SYNC CHECK: Bulk check backend for updates
+          const orderIds = parsed.map((o: any) => o.orderReference || o.id);
+          try {
+            // Single Request for all updates
+            const updates = await syncOrderUpdates(orderIds);
 
-                  // CHECK FOR QUOTES
-                  const quotes = await getQuotesForOrder(
-                    o.orderReference || o.id
-                  );
-                  if (quotes && quotes.length > 0) {
-                    o.quote = quotes[0]; // Attach latest quote
+            if (updates && Object.keys(updates).length > 0) {
+              parsed = parsed.map((o: any) => {
+                const id = o.orderReference || o.id;
+                const update = updates[id];
 
-                    // Force Status Update for Quote Ready
-                    // If we have a quote and status is not accepted/rejected/cancelled, set to quote_sent
+                if (update) {
+                  // Sync Status
+                  if (update.status && update.status !== o.status) {
+                    // Only update if server status is "advanced" compared to local?
+                    // or just trust server.
+                    // For safe sync: if server says quote_sent, reflect it.
                     if (
-                      o.status !== "quote_accepted" &&
-                      o.status !== "quote_rejected" &&
-                      o.status !== "cancelled"
+                      update.status === "quote_sent" ||
+                      update.status === "quote_ready"
                     ) {
                       o.status = "quote_sent";
-                      console.log("Updated status to quote_sent for", o.id);
+                      hasUpdates = true;
                     }
-                    console.log("Attached quote to", o.id);
-                    hasUpdates = true;
+                    // Sync other statuses
+                    if (update.status !== o.status) {
+                      o.status = update.status;
+                      hasUpdates = true;
+                    }
                   }
-                } catch (err) {
-                  console.error("Error checking sync", err);
+
+                  // Sync Questionnaire
+                  if (update.questionnaireStatus === "completed") {
+                    if (!o.questionnaireCompleted) {
+                      o.questionnaireCompleted = true;
+                      o.status = "questionnaire_completed";
+                      hasUpdates = true;
+                    }
+                  } else if (update.questionnaireStatus === "sent") {
+                    if (!o.questionnaireSent) {
+                      o.questionnaireSent = true;
+                      if (!o.questionnaireCompleted)
+                        o.status = "questionnaire_sent";
+                      hasUpdates = true;
+                    }
+                  }
+
+                  // Sync Quote
+                  if (update.quote) {
+                    // Check if we need to attach or update quote
+                    if (!o.quote || o.quote.id !== update.quote.id) {
+                      o.quote = update.quote;
+                      console.log("Synced quote for", id);
+                      hasUpdates = true;
+                    }
+                  }
                 }
-              }
-              return o;
-            })
-          );
+                return o;
+              });
+            }
+          } catch (err) {
+            console.error("Bulk sync failed", err);
+          }
 
           // If we found updates, save back to localStorage to keep sync
           if (hasUpdates) {
@@ -439,18 +449,23 @@ function ProfileContent() {
     loadCustomOrders();
 
     // Auto-sync polling every 5 seconds to catch Admin updates fast
+    // Auto-sync polling every 15 seconds (reduced frequency)
+    // DISABLED FOR NOW AS PER USER REQUEST - MANUAL SYNC ONLY
+    /*
     const interval = setInterval(() => {
-      // Quietly reload without causing full page flicker if possible,
-      // but loadCustomOrders updates state which is fine.
+      // Quietly reload
       console.log("Auto-syncing custom orders...");
       loadCustomOrders();
-    }, 5000);
-
-    return () => clearInterval(interval);
+    }, 15000);
+    */
 
     // Listen for updates from Admin page
     window.addEventListener("storage", loadCustomOrders);
-    return () => window.removeEventListener("storage", loadCustomOrders);
+
+    return () => {
+      // clearInterval(interval);
+      window.removeEventListener("storage", loadCustomOrders);
+    };
   }, []);
 
   const wishlist = [
@@ -905,6 +920,14 @@ function ProfileContent() {
                       )}
                     >
                       Past History
+                    </button>
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="px-4 py-2 rounded-lg text-xs font-bold text-slate-500 hover:text-indigo-600 hover:bg-white transition-all flex items-center gap-2"
+                      title="Force Sync with Server"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Sync
                     </button>
                   </div>
                   <div className="relative flex-1 max-w-sm">

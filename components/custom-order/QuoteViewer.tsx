@@ -205,67 +205,68 @@ export default function QuoteViewer({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-6 bg-slate-50/80 border-t border-slate-200/60 backdrop-blur-md flex flex-col sm:flex-row gap-4 items-center justify-between">
-          {!showRejectForm ? (
-            <>
-              <button
-                onClick={() => setShowRejectForm(true)}
-                className="text-slate-500 hover:text-slate-800 font-bold text-sm px-4 py-2 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2"
-              >
-                <MessageSquare className="w-4 h-4" />
-                Request Changes
-              </button>
-
-              <button
-                onClick={handleAccept}
-                disabled={isAccepting}
-                className="w-full sm:w-auto px-8 py-3.5 bg-linear-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold rounded-xl shadow-xl shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] transform transition-all active:scale-[0.98] flex items-center justify-center gap-2 group ring-1 ring-white/20"
-              >
-                {isAccepting ? (
-                  "Processing..."
-                ) : (
-                  <>
-                    Accept Offer{" "}
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
-            </>
-          ) : (
-            <div className="w-full space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-slate-900">
-                  Request Revision
-                </h4>
+        <div className="relative p-6 bg-slate-50/80 border-t border-slate-200/60 backdrop-blur-md flex flex-col items-center gap-4">
+          <div className="w-full flex flex-col sm:flex-row gap-4 items-center justify-between z-10">
+            {!showRejectForm ? (
+              <>
                 <button
-                  onClick={() => setShowRejectForm(false)}
-                  className="text-xs text-slate-400 hover:text-slate-600"
+                  onClick={() => setShowRejectForm(true)}
+                  className="text-slate-500 hover:text-slate-800 font-bold text-sm px-4 py-2 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2"
                 >
-                  Cancel
+                  <MessageSquare className="w-4 h-4" />
+                  Request Changes
+                </button>
+
+                <button
+                  onClick={handleAccept}
+                  disabled={isAccepting}
+                  className="w-full sm:w-auto px-8 py-3.5 bg-linear-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold rounded-xl shadow-xl shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] transform transition-all active:scale-[0.98] flex items-center justify-center gap-2 group ring-1 ring-white/20"
+                >
+                  {isAccepting ? (
+                    "Processing..."
+                  ) : (
+                    <>
+                      Accept Offer{" "}
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </button>
+              </>
+            ) : (
+              <div className="w-full space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-slate-900">
+                    Request Revision
+                  </h4>
+                  <button
+                    onClick={() => setShowRejectForm(false)}
+                    className="text-xs text-slate-400 hover:text-slate-600"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="What would you like to change? (e.g. Budget constraints, different timeline...)"
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none"
+                  rows={2}
+                />
+                <button
+                  onClick={handleReject}
+                  disabled={isRejecting}
+                  className="w-full py-2 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-colors text-sm"
+                >
+                  {isRejecting ? "Sending Request..." : "Submit Request"}
                 </button>
               </div>
-              <textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="What would you like to change? (e.g. Budget constraints, different timeline...)"
-                className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none"
-                rows={2}
-              />
-              <button
-                onClick={handleReject}
-                disabled={isRejecting}
-                className="w-full py-2 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-colors text-sm"
-              >
-                {isRejecting ? "Sending Request..." : "Submit Request"}
-              </button>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* Payment Protection Badge */}
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 translate-y-full mb-1">
-          <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-t-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm">
-            <ShieldCheck className="w-3 h-3" /> Secure Transaction
+          {/* Secure Transaction Badge - Now Inside Footer */}
+          <div className="bg-emerald-100/50 border border-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-help">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Secure Transaction via Stripe Escrow
           </div>
         </div>
       </div>
