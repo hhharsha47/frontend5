@@ -16,14 +16,26 @@ interface MockDB {
 
 // LOAD DATA helper
 function loadData(): MockDB {
-    try {
-        if (fs.existsSync(DB_PATH)) {
-            const data = fs.readFileSync(DB_PATH, "utf-8");
-            return JSON.parse(data);
+    let retries = 3;
+    while (retries > 0) {
+        try {
+            if (fs.existsSync(DB_PATH)) {
+                const data = fs.readFileSync(DB_PATH, "utf-8");
+                if (data) return JSON.parse(data);
+            }
+            break; // File doesn't exist, use default
+        } catch (error) {
+            console.error(`Error loading mock DB (attempt ${4-retries}):`, error);
+            retries--;
+            // Simple synchronous delay loop since we can't use await in sync function easily without changing signature
+            // But this is server action, we can make loadData async? 
+            // Most existing callers call it synchronously. Changing to async would require updating all callers.
+            // For now, simple busy wait or just retry immediately.
+            const start = Date.now();
+            while (Date.now() - start < 100) {} // 100ms delay
         }
-    } catch (error) {
-        console.error("Error loading mock DB:", error);
     }
+    // Default initial data if no file or failed reads
     // Default initial data if no file
     return {
         orders: [
@@ -63,24 +75,27 @@ function loadData(): MockDB {
 
 // SAVE DATA helper
 function saveData(data: MockDB) {
-    try {
-        fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-    } catch (error) {
-        console.error("Error saving mock DB:", error);
+    let retries = 3;
+    while (retries > 0) {
+        try {
+            fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+            return;
+        } catch (error) {
+            console.error(`Error saving mock DB (attempt ${4-retries}):`, error);
+            retries--;
+            const start = Date.now();
+            while (Date.now() - start < 100) {} // 100ms delay
+        }
     }
 }
 
 // Initialize In-Memory access (will refresh on file change/reload if needed, but here we load on access mostly or simpler)
 // For simplicity in this "use server" context, we'll load on every write, and maybe read.
-// Actually, let's keep a module-level cache but reload if empty?
 // Better: Load at start of action, save at end.
 
 export async function getCustomOrderDetails(id: string) {
   const db = loadData();
-  
-  // Simulate delay
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  
+
   // Try to find by ID or Reference
   const order = db.orders.find(o => o.orderReference === id || o.id.toString() === id);
   
@@ -110,7 +125,7 @@ export async function getCustomOrderDetails(id: string) {
 
 export async function updateCustomOrderStatus(orderId: string, status: string) {
   const db = loadData();
-  await new Promise((resolve) => setTimeout(resolve, 300));
+
   
   const index = db.orders.findIndex(o => o.orderReference === orderId || o.id.toString() === orderId);
   if (index !== -1) {
@@ -128,7 +143,7 @@ export async function updateCustomOrderStatus(orderId: string, status: string) {
 export async function createQuestionnaire(orderId: string, data: any) {
   try {
     const db = loadData();
-    await new Promise((resolve) => setTimeout(resolve, 500));
+
     
     console.log("Creating Questionnaire for", orderId, data);
     
@@ -181,7 +196,7 @@ export async function createQuestionnaire(orderId: string, data: any) {
 
 export async function submitQuestionnaireResponse(questionnaireId: number, responses: any) {
     const db = loadData();
-    await new Promise((resolve) => setTimeout(resolve, 500));
+
     console.log("Submitting responses", questionnaireId, responses);
     
     // Find questionnaire

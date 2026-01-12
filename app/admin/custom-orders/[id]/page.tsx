@@ -21,6 +21,7 @@ import {
   Receipt,
   Trash2,
   Calendar,
+  Plus,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -251,6 +252,17 @@ export default function OrderDetailPage() {
     }, 800);
   };
 
+  const handleGenerateInvoice = async (quote: any) => {
+    const res = await generateInvoice(quote.orderId);
+    if (res.success) {
+      toast.success("Invoice generated successfully");
+      // Reload or update local state
+      setOrder((prev) => ({ ...prev, invoice: res.invoice }));
+    } else {
+      toast.error("Failed to generate invoice");
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20">
       {/* Questionnaire Builder Modal Integration */}
@@ -264,6 +276,28 @@ export default function OrderDetailPage() {
             toast.success("Questionnaire sent successfully");
           }}
         />
+      )}
+
+      {/* Quote Builder Modal (Portal) */}
+      {showQuoteBuilder && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <QuoteBuilder
+              orderId={order.id}
+              onSuccess={() => {
+                setShowQuoteBuilder(false);
+                // Refresh data
+                const fetchQ = async () => {
+                  const fetchedQuotes = await getQuotesForOrder(order.id);
+                  setQuotes(fetchedQuotes || []);
+                };
+                fetchQ();
+                toast.success("Quote created successfully");
+              }}
+              onCancel={() => setShowQuoteBuilder(false)}
+            />
+          </div>
+        </div>
       )}
 
       {/* Top Navigation & Header */}
@@ -405,7 +439,7 @@ export default function OrderDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Customer Profile */}
         <div className="space-y-6">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm sticky top-6">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-bold text-slate-800 flex items-center gap-2">
                 <User className="w-5 h-5 text-indigo-500" />
@@ -455,10 +489,79 @@ export default function OrderDetailPage() {
                 <span className="font-bold text-slate-700">New York, USA</span>
               </div>
             </div>
+          </div>
 
-            <button className="w-full mt-6 py-3 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
-              View Full CRM Profile
-            </button>
+          {/* --- Phase 3: Quote Section (Moved to Sidebar) --- */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-emerald-600" />
+                Quotes
+              </h3>
+              {!showQuoteBuilder && order.status !== "cancelled" && (
+                <button
+                  onClick={() => setShowQuoteBuilder(true)}
+                  className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
+                  title="Create New Quote"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {quotes.length === 0 ? (
+              <div className="text-center py-6 text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                <p className="text-xs">No quotes created yet</p>
+                <button
+                  onClick={() => setShowQuoteBuilder(true)}
+                  className="mt-2 text-xs font-bold text-emerald-600 hover:underline"
+                >
+                  Create One
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {quotes.map((quote: any) => (
+                  <div
+                    key={quote.id}
+                    className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col gap-2 hover:border-emerald-200 transition-colors group"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">
+                          {quote.amount} {quote.currency}
+                        </p>
+                        <p className="text-[10px] text-slate-500">
+                          {quote.timeline} • Ver. {quote.version}
+                        </p>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                          quote.status === "accepted"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : quote.status === "rejected"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {quote.status}
+                      </span>
+                    </div>
+
+                    {/* Invoice Button if Accepted */}
+                    {quote.status === "accepted" && !order.invoice && (
+                      <button
+                        onClick={() => handleGenerateInvoice(quote)}
+                        className="w-full py-1.5 mt-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-1"
+                      >
+                        <Receipt className="w-3 h-3" />
+                        Generate Invoice
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -746,7 +849,8 @@ export default function OrderDetailPage() {
                 )}
 
                 {/* --- Phase 3: Quote Section --- */}
-                <div className="md:col-span-2 mt-8 pt-8 border-t border-slate-100">
+                {/* --- Phase 3: Quote Section (Duplicate Hidden) --- */}
+                <div className="hidden">
                   {/* Header */}
                   <div className="flex items-center justify-between mb-6">
                     <div>

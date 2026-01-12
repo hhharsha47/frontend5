@@ -26,6 +26,7 @@ import {
   HelpCircle,
   FileText,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -324,12 +325,16 @@ function ProfileContent() {
                   );
                   if (quotes && quotes.length > 0) {
                     o.quote = quotes[0]; // Attach latest quote
-                    // Update status if needed (server status takes precedence usually but good to sync)
+
+                    // Force Status Update for Quote Ready
+                    // If we have a quote and status is not accepted/rejected/cancelled, set to quote_sent
                     if (
-                      o.status === "quote_sent" ||
-                      o.status === "quote_accepted"
+                      o.status !== "quote_accepted" &&
+                      o.status !== "quote_rejected" &&
+                      o.status !== "cancelled"
                     ) {
-                      // o.status is already correct from server, just ensuring UI logic has the data
+                      o.status = "quote_sent";
+                      console.log("Updated status to quote_sent for", o.id);
                     }
                     console.log("Attached quote to", o.id);
                     hasUpdates = true;
@@ -404,6 +409,7 @@ function ProfileContent() {
                 },
               ],
               aiConversation: o.aiConversation || [],
+              quote: o.quote, // PASS THE QUOTE OBJECT
             };
           });
           setCustomRequests(mapped);
@@ -516,9 +522,12 @@ function ProfileContent() {
       if (q) {
         setActiveQuestionnaire(q);
       } else {
-        toast.error("Could not load details. Please try again.");
+        toast.error(
+          `Could not load details for order ${request.id}. Please try again.`
+        );
       }
     } catch (e) {
+      console.error(e);
       toast.error("Error loading questionnaire");
     }
   };
@@ -885,6 +894,14 @@ function ProfileContent() {
                       )}
                     >
                       Past History
+                    </button>
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="px-4 py-2 rounded-lg text-xs font-bold text-slate-500 hover:text-indigo-600 hover:bg-white transition-all flex items-center gap-2"
+                      title="Force Sync with Server"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Sync
                     </button>
                   </div>
                   <div className="relative flex-1 max-w-sm">
