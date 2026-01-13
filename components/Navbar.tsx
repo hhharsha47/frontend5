@@ -24,7 +24,7 @@ export default function Navbar() {
         <Link href="/" className="shrink-0">
           <Image
             src="/file.svg"
-            alt="Hobbyist Decals"
+            alt="Skyscale"
             width={200}
             height={70}
             className="h-16 w-auto object-contain"
